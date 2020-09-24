@@ -22,10 +22,23 @@
 } = require('http2');
 const { Readable } = require('stream');
 
-// TODO: idle session timeout: configurable context option
 const IDLE_SESSION_TIMEOUT = 5 * 60 * 1000; // 5m
 
-const sessionCache = {};
+const setupContext = (ctx) => {
+  const { options: { h2: { idleSessionTimeout = IDLE_SESSION_TIMEOUT } = {} } } = ctx;
+  ctx.h2 = { sessionCache: {} };
+  ctx.h2.idleSessionTimeout = idleSessionTimeout;
+}
+
+const resetContext = async ({ h2 }) => {
+  Object.values(h2.sessionCache).forEach((session) => session.destroy());
+  return Promise.resolve();
+/*
+  return Promise.all(Object.values(h2.sessionCache).map((session) => {
+    return new Promise((resolve, reject) => session.close(resolve));
+  }));
+*/
+}
 
 const createResponse = (headers, clientHttp2Stream) => {
   const statusCode = headers[':status'];
@@ -41,8 +54,10 @@ const createResponse = (headers, clientHttp2Stream) => {
 }
 
 const request = async (ctx, url, options) => {
-  const { origin, pathName, search, hash } = url;
-  const path = `${pathName || '/'}${search}${hash}`;
+  const { origin, pathname, search, hash } = url;
+  const path = `${pathname || '/'}${search}${hash}`;
+
+  const { h2: { sessionCache }} = ctx;
 
   const opts = { ...options };
   const { method, headers = {}, socket, body } = opts;
@@ -65,8 +80,7 @@ const request = async (ctx, url, options) => {
       connectOptions.createConnection = (url, options) => socket;
     }
     session = connect(origin, connectOptions);
-    // TODO: idle session timeout: configurable context option
-    //session.setTimeout(IDLE_SESSION_TIMEOUT);
+    session.setTimeout(IDLE_SESSION_TIMEOUT);
     session.on('origin', (origins) => {
       origins.forEach((origin) => {
         console.log(`origin: ${origin}`);
@@ -101,4 +115,4 @@ const request = async (ctx, url, options) => {
   });
 }
 
-module.exports = request;
+module.exports = { request, setupContext, resetContext };

@@ -16,11 +16,46 @@ const http = require('http');
 const https = require('https');
 const { Readable } = require('stream');
 
-// TODO: custom agent options?
-// TODO: configurable context option
-const agentOptions = {}; 
-http.customAgent = new http.Agent(agentOptions);
-https.customAgent = new https.Agent(agentOptions);
+const getAgent = (ctx, protocol) => {
+  const { h1, options: { h1: opts} } = ctx;
+
+  if (protocol === 'https:') {
+    // secure http
+    if (h1.httpsAgent) {
+      return h1.httpsAgent;
+    }
+    if (opts) {
+      return h1.httpsAgent = new https.Agent(opts);
+    }
+    return https.globalAgent;
+  } else {
+    // plain http
+    if (h1.httpAgent) {
+      return h1.httpAgent;
+    }
+    if (opts) {
+      return h1.httpAgent = new http.Agent(opts);
+    }
+    return http.globalAgent;
+  }
+}
+
+const setupContext = (ctx) => {
+  const { options: { h1: opts } } = ctx;
+  ctx.h1 = {};
+  // custom agents will be lazily instantiated
+}
+
+const resetContext = async ({ h1 }) => {
+  if (h1.httpAgent) {
+    h1.httpAgent.destroy();
+    delete h1.httpAgent;
+  }  
+  if (h1.httpsAgent) {
+    h1.httpsAgent.destroy();
+    delete h1.httpsAgent;
+  }  
+}
 
 const createResponse = (incomingMessage) => {
   const {
@@ -41,8 +76,9 @@ const createResponse = (incomingMessage) => {
 }
 
 const h1Request = async (ctx, url, options) => {
-  const { customAgent, request } = url.protocol === 'https:' ? https : http;
-  const opts = { ...options, agent: customAgent };
+  const { request } = url.protocol === 'https:' ? https : http;
+  const agent = getAgent(ctx, url.protocol);
+  const opts = { ...options, agent };
   const { socket, body } = opts;
   if (socket) {
     // reuse socket
@@ -67,4 +103,4 @@ const h1Request = async (ctx, url, options) => {
   });
 }
 
-module.exports = h1Request;
+module.exports = { request: h1Request, setupContext, resetContext };

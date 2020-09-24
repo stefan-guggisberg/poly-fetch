@@ -16,8 +16,8 @@ const tls = require('tls');
 
 const LRU = require('lru-cache');
 
-const h1Request = require('./h1request');
-const h2Request = require('./h2request');
+const h1 = require('./h1');
+const h2 = require('./h2');
 const lock = require('./lock');
 
 const ALPN_HTTP2 = 'h2';
@@ -25,9 +25,12 @@ const ALPN_HTTP2C = 'h2c';
 const ALPN_HTTP1_0 = 'http1.0';
 const ALPN_HTTP1_1 = 'http1.1';
 
+// context option defaults
 const ALPN_CACHE_SIZE = 100; // # of entries
 const ALPN_CACHE_TTL = 60 * 60 * 1000; // (ms): 1h
-const alpnCache = new LRU({ max: ALPN_CACHE_SIZE, maxAge: ALPN_CACHE_TTL });
+const ALPN_PROTOCOLS = [ ALPN_HTTP2, ALPN_HTTP1_1, ALPN_HTTP1_0 ];
+
+const DEFAULT_USER_AGENT = 'polyglot-http-client';
 
 const DEFAULT_OPTIONS = { method: 'GET' };
 
@@ -62,9 +65,9 @@ const connectTLS = (url, options) => {
   });
 }
 
-const determineProtocol = async (url) => {
+const determineProtocol = async (ctx, url) => {
   // lookup ALPN cache
-  let protocol = alpnCache.get(url.origin);
+  let protocol = ctx.alpnCache.get(url.origin);
   if (protocol) {
     return { protocol };
   }
@@ -73,13 +76,13 @@ const determineProtocol = async (url) => {
       // for simplicity we assume unencrypted HTTP to be HTTP/1.1 
       // (although, theoretically, it could also be plain-text HTTP/2 (h2c))
       protocol = ALPN_HTTP1_1;
-      alpnCache.set(url.origin, protocol);
+      ctx.alpnCache.set(url.origin, protocol);
       return { protocol };
 
     case 'http2:':
       // HTTP/2 over TCP (h2c)
       protocol = ALPN_HTTP2C;
-      alpnCache.set(url.origin, protocol);
+      ctx.alpnCache.set(url.origin, protocol);
       return { protocol };
 
     case 'https:':
@@ -91,10 +94,9 @@ const determineProtocol = async (url) => {
   }
 
   // negotioate via ALPN
-  const ALPNProtocols = [ ALPN_HTTP2, ALPN_HTTP1_1, ALPN_HTTP1_0 ]; // TODO: configurable context option
   const connectOptions = { 
     servername: url.hostname, // enable SNI (Server Name Indication) extension
-    ALPNProtocols
+    ALPNProtocols: ctx.alpnProtocols
   };
   const socket = await connect(url, connectOptions);
   // socket.alpnProtocol contains the negotiated protocol (e.g. 'h2', 'http1.1', 'http1.0')
@@ -102,7 +104,7 @@ const determineProtocol = async (url) => {
   if (!protocol) {
     protocol = ALPN_HTTP1_1; // default fallback
   }
-  alpnCache.set(url.origin, protocol);
+  ctx.alpnCache.set(url.origin, protocol);
   return { protocol, socket };
 };
 
@@ -115,7 +117,7 @@ const sanitizeHeaders = (headers) => {
   return result;
 };
 
-const request = async (uri, options) => {
+const request = async (ctx, uri, options) => {
   const url = typeof uri === 'string' ? new URL(uri) : uri;
 
   const opts = { ...DEFAULT_OPTIONS, ...(options || {})};
@@ -130,22 +132,65 @@ const request = async (uri, options) => {
   if (!opts.headers.host) {
     opts.headers.host = url.host;
   }
+  // User-Agent header
+  if (ctx.userAgent) {
+    if (!opts.headers['user-agent'] || ctx.overwriteUserAgent) {
+      opts.headers['user-agent'] = ctx.userAgent;
+    }
+  }
 
   // delegate to protocol-specific request handler
-  const { protocol, socket = null } = await determineProtocol(url);
+  const { protocol, socket = null } = await determineProtocol(ctx, url);
   switch (protocol) {
     case ALPN_HTTP2:
-      return h2Request(url, socket ? { ...opts, socket } : opts);
+      return h2.request(ctx, url, socket ? { ...opts, socket } : opts);
     case ALPN_HTTP2C:
         // plain-text HTTP/2 (h2c)
         url.protocol = 'http:';
-        return h2Request(url, socket ? { ...opts, socket } : opts);
+        return h2.request(ctx, url, socket ? { ...opts, socket } : opts);
     case ALPN_HTTP1_0:
     case ALPN_HTTP1_1:
-      return h1Request(url, socket ? { ...opts, socket } : opts);
+      return h1.request(ctx, url, socket ? { ...opts, socket } : opts);
     default:
       throw new Error(`unsupported protocol: ${protocol}`);
   }
 }
 
-module.exports = { request };
+const resetContext = async (ctx) => {
+  ctx.alpnCache.reset();
+  return Promise.all([
+    h1.resetContext(ctx),
+    h2.resetContext(ctx)
+  ]);
+}
+
+const setupContext = (ctx) => {
+  const { 
+    options: { 
+      alpnProtocols = ALPN_PROTOCOLS,
+      alpnCacheTTL = ALPN_CACHE_TTL,
+      alpnCacheSize = ALPN_CACHE_SIZE,
+      userAgent = DEFAULT_USER_AGENT,
+      overwriteUserAgent = false
+    }
+  } = ctx;
+
+  ctx.alpnProtocols = alpnProtocols;
+  ctx.alpnCache = new LRU({ max: alpnCacheSize, maxAge: alpnCacheTTL });
+
+  ctx.userAgent = userAgent;
+  ctx.overwriteUserAgent = overwriteUserAgent;
+
+  h1.setupContext(ctx);
+  h2.setupContext(ctx);
+}
+
+module.exports = {
+  request,
+  setupContext,
+  resetContext,
+  ALPN_HTTP2,
+  ALPN_HTTP2C,
+  ALPN_HTTP1_1,
+  ALPN_HTTP1_0
+};

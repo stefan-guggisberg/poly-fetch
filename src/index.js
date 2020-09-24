@@ -12,15 +12,21 @@
 
 'use strict';
 
-const { request } = require('./request');
+const { 
+  request,
+  setupContext,
+  resetContext, 
+  ALPN_HTTP2,
+  ALPN_HTTP2C,
+  ALPN_HTTP1_1,
+  ALPN_HTTP1_0
+} = require('./request');
 
-const DEFAULT_CONTEXT_OPTIONS = { userAgent: 'polyglot-http-client', overwriteUserAgent: true };
-
-class Context {
-  constructor(options = {}) {
+class RequestContext {
+  constructor(options) {
     // setup context
-    const opts = { ...DEFAULT_CONTEXT_OPTIONS, ...options };
-    this._ctx = context(opts);
+    this.options = options || {};
+    setupContext(this);
   }
 
   /**
@@ -29,35 +35,39 @@ class Context {
   api() {
     return {
       /**
-       * Fetches a resource from the network. Returns a Promise which resolves once
-       * the Response is available.
+       * Requests a resource from the network. Returns a Promise which resolves once
+       * the response is available.
        */
-      fetch: async (url, options) => this.fetch(url, options),
+      request: async (url, options) => this.request(url, options),
 
       /**
        * This function returns an object which looks like the global `polyglot-http-client` API,
-       * i.e. it will have the functions `fetch`, `disconnectAll`, etc. and provide its
+       * i.e. it will have the functions `request`, `reset`, etc. and provide its
        * own isolated caches.
        *
        * @param {Object} options
        */
-      context: (options = {}) => this.context(options),
+      context: (options = {}) => new RequestContext(options).api(),
 
       /**
-       * Disconnect all open/pending sessions.
+       * Resets the current context, i.e. disconnects all open/pending sessions, clears caches etc..
        */
-      disconnectAll: async () => this.disconnectAll(),
+      reset: async () => this.reset(),
+
+      ALPN_HTTP2,
+      ALPN_HTTP2C,
+      ALPN_HTTP1_1,
+      ALPN_HTTP1_0
     };
   }
 
-  // eslint-disable-next-line class-methods-use-this
-  context(options) {
-    return new Context(options).api();
+  async request(url, options) {
+    return request(this, url, options);
   }
 
-  async fetch(url, options) {
-    return request(this._ctx, url, options);
+  async reset() {
+    return resetContext(this);
   }
 }
 
-module.exports = new Context().api();
+module.exports = new RequestContext().api();

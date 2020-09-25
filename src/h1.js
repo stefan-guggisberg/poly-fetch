@@ -16,6 +16,8 @@ const http = require('http');
 const https = require('https');
 const { Readable } = require('stream');
 
+const debug = require('debug')('polyglot-http-client:h1');
+
 const getAgent = (ctx, protocol) => {
   const { h1, options: { h1: opts} } = ctx;
 
@@ -27,7 +29,8 @@ const getAgent = (ctx, protocol) => {
     if (opts) {
       return h1.httpsAgent = new https.Agent(opts);
     }
-    return https.globalAgent;
+    //return https.globalAgent;
+    return undefined;
   } else {
     // plain http
     if (h1.httpAgent) {
@@ -36,7 +39,8 @@ const getAgent = (ctx, protocol) => {
     if (opts) {
       return h1.httpAgent = new http.Agent(opts);
     }
-    return http.globalAgent;
+    //return http.globalAgent;
+    return undefined;
   }
 }
 
@@ -81,9 +85,13 @@ const h1Request = async (ctx, url, options) => {
   const opts = { ...options, agent };
   const { socket, body } = opts;
   if (socket) {
-    // reuse socket
     delete opts.socket;
-    opts.createConnection = (url, options) => socket;
+    // reuse socket
+    // FIXME: createConnection is only called if no (custom) agent is provided; wrap custom agent and override createConnection ?
+    opts.createConnection = (url, options) => {
+      debug(`reusing socket ${socket.host}`)
+      return socket;
+    }
   }
 
   return new Promise((resolve, reject) => {

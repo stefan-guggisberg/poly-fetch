@@ -15,6 +15,7 @@
 const tls = require('tls');
 
 const LRU = require('lru-cache');
+const debug = require('debug')('polyglot-http-client');
 
 const h1 = require('./h1');
 const h2 = require('./h2');
@@ -22,8 +23,8 @@ const lock = require('./lock');
 
 const ALPN_HTTP2 = 'h2';
 const ALPN_HTTP2C = 'h2c';
-const ALPN_HTTP1_0 = 'http1.0';
-const ALPN_HTTP1_1 = 'http1.1';
+const ALPN_HTTP1_0 = 'http/1.0';
+const ALPN_HTTP1_1 = 'http/1.1';
 
 // context option defaults
 const ALPN_CACHE_SIZE = 100; // # of entries
@@ -57,7 +58,7 @@ const connectTLS = (url, options) => {
       // workaround for node >= 12.17.0 regression
       // (see https://github.com/nodejs/node/pull/34859)
       socket.secureConnecting = false;
-
+      debug(`established TLS connection: ${url.hostname}`);
       resolve(socket);
     });
 

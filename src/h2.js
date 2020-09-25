@@ -22,6 +22,8 @@
 } = require('http2');
 const { Readable } = require('stream');
 
+const debug = require('debug')('polyglot-http-client:h2');
+
 const IDLE_SESSION_TIMEOUT = 5 * 60 * 1000; // 5m
 
 const setupContext = (ctx) => {
@@ -31,13 +33,11 @@ const setupContext = (ctx) => {
 }
 
 const resetContext = async ({ h2 }) => {
-  Object.values(h2.sessionCache).forEach((session) => session.destroy());
-  return Promise.resolve();
-/*
+  //Object.values(h2.sessionCache).forEach((session) => session.destroy());
+  //return Promise.resolve();
   return Promise.all(Object.values(h2.sessionCache).map((session) => {
     return new Promise((resolve, reject) => session.close(resolve));
   }));
-*/
 }
 
 const createResponse = (headers, clientHttp2Stream) => {
@@ -57,7 +57,7 @@ const request = async (ctx, url, options) => {
   const { origin, pathname, search, hash } = url;
   const path = `${pathname || '/'}${search}${hash}`;
 
-  const { h2: { sessionCache }} = ctx;
+  const { options: { h2: ctxOpts }, ctxOptions, h2: { sessionCache }} = ctx;
 
   const opts = { ...options };
   const { method, headers = {}, socket, body } = opts;
@@ -73,27 +73,40 @@ const request = async (ctx, url, options) => {
   let session = sessionCache[origin];
   if (!session || session.closed) {
     // connect and setup new session
-    // TODO: connect options: configurable context option
-    const connectOptions = {};	// https://nodejs.org/api/http2.html#http2_http2_connect_authority_options_listener
+    // (connect options: https://nodejs.org/api/http2.html#http2_http2_connect_authority_options_listener)
+    const connectOptions = ctxOpts || {};
     if (socket) {
       // reuse socket
-      connectOptions.createConnection = (url, options) => socket;
+      connectOptions.createConnection = (url, options) => {
+        debug(`reusing socket ${url.hostname}`)
+        return socket;
+      }
     }
     session = connect(origin, connectOptions);
     session.setTimeout(IDLE_SESSION_TIMEOUT);
     session.on('origin', (origins) => {
       origins.forEach((origin) => {
-        console.log(`origin: ${origin}`);
+        debug(`origin: ${origin}`);
       });
     });
-    session.once('timeout', () => session.close());
-    session.once('close', () => delete sessionCache[origin]);
-    session.on('error', (err) => console.error(err)); // TODO: propagate error
+    session.once('timeout', () => {
+      debug(`session ${origin} timed out`);
+      session.close();
+    });
+    session.once('close', () => {
+      debug(`session ${origin} closed`);
+      delete sessionCache[origin];
+    });
+    session.on('error', (err) => {
+      debug(`session ${origin} encountered error: ${err}`);
+      // TODO: propagate error
+    });
     sessionCache[origin] = session;
   } else {
     // we have a cached session 
     if (socket) {
       // we have no use for the passed socket
+      debug(`destroying redundant socket ${socket.host}`);
       socket.destroy();
     }
   }

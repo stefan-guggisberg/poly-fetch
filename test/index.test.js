@@ -22,8 +22,7 @@ const isStream = require('is-stream');
 const nock = require('nock');
 const { WritableStreamBuffer } = require('stream-buffers');
 
-const { request, context, reset } = require('../src/index');
-const { ALPN_HTTP1_1 } = require('../src/request');
+const { request, context, reset, ALPN_HTTP1_1 } = require('../src/index');
 
 const streamFinished = promisify(stream.finished);
 
@@ -98,7 +97,7 @@ describe('Polyglot HTTP Client Tests', () => {
     }
   });
 
-  it.only('forcing HTTP/1.1 works', async function test() {
+  it('forcing HTTP/1.1 works', async function test() {
     this.timeout(5000);
     // endpoint supporting http2 & http1
     const url = 'https://www.nghttp2.org/httpbin/status/200';
@@ -113,6 +112,24 @@ describe('Polyglot HTTP Client Tests', () => {
     });
     try {
       resp = await h1Ctx.request(url);
+      assert.strictEqual(resp.statusCode, 200);
+      assert.strictEqual(resp.httpVersionMajor, 1);
+      assert.strictEqual(resp.httpVersionMinor, 1);
+    } finally {
+      h1Ctx.reset();
+    }
+  });
+
+  it('forcing HTTP/1.1 works', async function test() {
+    this.timeout(5000);
+    // endpoint supporting http2 & http1
+    const url = 'https://www.nghttp2.org/httpbin/status/200';
+    // custom context forces http1
+    const h1Ctx = context({
+      alpnProtocols: [ ALPN_HTTP1_1 ],
+    });
+    try {
+      const resp = await h1Ctx.request(url);
       assert.strictEqual(resp.statusCode, 200);
       assert.strictEqual(resp.httpVersionMajor, 1);
       assert.strictEqual(resp.httpVersionMinor, 1);

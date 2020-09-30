@@ -44,9 +44,13 @@ describe('Polyglot HTTP Client Tests', () => {
     assert.strictEqual(resp.httpVersionMajor, 1);
   });
 
-  it('request supports HTTP/2', async () => {
-    const resp = await defaultCtx.request('https://www.nghttp2.org/httpbin/status/200');
+  it.only('request supports HTTP/2', async () => {
+    let resp = await defaultCtx.request('https://www.nghttp2.org/httpbin/status/200');
     assert.strictEqual(resp.statusCode, 200);
+    assert.strictEqual(resp.httpVersionMajor, 2);
+
+    resp = await defaultCtx.request('https://www.nghttp2.org/httpbin/status/201');
+    assert.strictEqual(resp.statusCode, 201);
     assert.strictEqual(resp.httpVersionMajor, 2);
   });
 

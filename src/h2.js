@@ -106,7 +106,7 @@ const request = async (ctx, url, options) => {
     // we have a cached session 
     if (socket) {
       // we have no use for the passed socket
-      debug(`destroying redundant socket ${socket.host}`);
+      debug(`discarding redundant socket used for ALPN ${socket.host}`);
       socket.destroy();
     }
   }

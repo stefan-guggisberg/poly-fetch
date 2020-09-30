@@ -29,7 +29,7 @@ const getAgent = (ctx, protocol) => {
     if (opts) {
       return h1.httpsAgent = new https.Agent(opts);
     }
-    //return https.globalAgent;
+    // use default (global) agent
     return undefined;
   } else {
     // plain http
@@ -39,7 +39,7 @@ const getAgent = (ctx, protocol) => {
     if (opts) {
       return h1.httpAgent = new http.Agent(opts);
     }
-    //return http.globalAgent;
+    // use default (global) agent
     return undefined;
   }
 }
@@ -86,11 +86,27 @@ const h1Request = async (ctx, url, options) => {
   const { socket, body } = opts;
   if (socket) {
     delete opts.socket;
-    // reuse socket
-    // FIXME: createConnection is only called if no (custom) agent is provided; wrap custom agent and override createConnection ?
-    opts.createConnection = (url, options) => {
-      debug(`reusing socket ${socket.host}`)
-      return socket;
+    // reuse socket for actual request
+    if (agent) {
+      // if there's an agent we need to override the agent's createConnection
+      opts.agent = new Proxy(agent, {
+        get: (target, property) => {
+          if (property === 'createConnection') {
+            return (options, cb) => {
+              debug(`reusing socket ${socket.host}`)
+              cb(null, socket);
+            };
+          } else {
+            return target[property];
+          }
+        }
+      });
+    } else {
+      // no agent, provide createConntection in options 
+      opts.createConnection = (url, options) => {
+        debug(`reusing socket ${socket.host}`)
+        return socket;
+      }
     }
   }
 

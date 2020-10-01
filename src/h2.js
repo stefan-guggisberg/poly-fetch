@@ -78,7 +78,7 @@ const request = async (ctx, url, options) => {
     if (socket) {
       // reuse socket
       connectOptions.createConnection = (url, options) => {
-        debug(`reusing socket ${url.hostname}`)
+        debug(`reusing socket #${socket.id} ${url.hostname}`)
         return socket;
       }
     }
@@ -105,13 +105,16 @@ const request = async (ctx, url, options) => {
   } else {
     // we have a cached session 
     if (socket) {
-      // we have no use for the passed socket
-      debug(`discarding redundant socket used for ALPN ${socket.host}`);
-      socket.destroy();
+      if (socket.id !== session.socket.id) {
+        // we have no use for the passed socket
+        debug(`discarding redundant socket used for ALPN: #${socket.id} ${socket.host}`);
+        socket.destroy();
+      }
     }
   }
 
   return new Promise((resolve, reject) => {
+    debug(`${method} ${url.host}${path}`);
     const req = session.request({ ':method': method, ':path': path, ...headers });
     req.once('response', (headers, flags) => {
       resolve(createResponse(headers, req));

@@ -35,6 +35,8 @@ const DEFAULT_USER_AGENT = 'polyglot-http-client';
 
 const DEFAULT_OPTIONS = { method: 'GET' };
 
+let socketIdCounter = 0;
+
 const connectionLock = lock();
 
 const connect = async (url, options) => {
@@ -55,10 +57,11 @@ const connectTLS = (url, options) => {
     // TODO: connect timeout option: https://github.com/grantila/fetch-h2/issues/99
     const socket = tls.connect(+url.port || 443, url.hostname, options);
     socket.once('secureConnect', () => {
+      socket.id = ++socketIdCounter;
       // workaround for node >= 12.17.0 regression
       // (see https://github.com/nodejs/node/pull/34859)
       socket.secureConnecting = false;
-      debug(`established TLS connection: ${url.hostname}`);
+      debug(`established TLS connection: #${socket.id} ${url.hostname}`);
       resolve(socket);
     });
 
@@ -142,6 +145,7 @@ const request = async (ctx, uri, options) => {
 
   // delegate to protocol-specific request handler
   const { protocol, socket = null } = await determineProtocol(ctx, url);
+  debug(`${url.host} -> ${protocol}`);
   switch (protocol) {
     case ALPN_HTTP2:
       return h2.request(ctx, url, socket ? { ...opts, socket } : opts);

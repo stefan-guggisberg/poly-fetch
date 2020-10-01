@@ -26,6 +26,12 @@ const { request, context, reset, ALPN_HTTP1_1 } = require('../src/index');
 
 const streamFinished = promisify(stream.finished);
 
+const readStream = async (stream) => {
+  const out = new WritableStreamBuffer();
+  stream.pipe(out);
+  return streamFinished(out).then(() => out.getContents());
+};
+
 describe('Polyglot HTTP Client Tests', () => {
 
   let defaultCtx;
@@ -38,13 +44,13 @@ describe('Polyglot HTTP Client Tests', () => {
     await defaultCtx.reset();
   });
   
-  it('request supports HTTP/1(.1)', async () => {
+  it('supports HTTP/1(.1)', async () => {
     const resp = await defaultCtx.request('http://httpbin.org/status/200');
     assert.strictEqual(resp.statusCode, 200);
     assert.strictEqual(resp.httpVersionMajor, 1);
   });
 
-  it('request supports HTTP/2', async () => {
+  it('supports HTTP/2', async () => {
     let resp = await defaultCtx.request('https://www.nghttp2.org/httpbin/status/200');
     assert.strictEqual(resp.statusCode, 200);
     assert.strictEqual(resp.httpVersionMajor, 2);
@@ -54,7 +60,7 @@ describe('Polyglot HTTP Client Tests', () => {
     assert.strictEqual(resp.httpVersionMajor, 2);
   });
 
-  it('request supports binary response body (Stream)', async () => {
+  it('supports binary response body (Stream)', async () => {
     const dataLen = 64 * 1024; // httpbin.org/stream-bytes/{n} has a limit of 100kb ...
     const contentType = 'application/octet-stream';
     const resp = await defaultCtx.request(`https://httpbin.org/stream-bytes/${dataLen}`, {
@@ -64,10 +70,8 @@ describe('Polyglot HTTP Client Tests', () => {
     assert.strictEqual(resp.headers['content-type'], contentType);
     assert(isStream.readable(resp.readable));
 
-    const out = new WritableStreamBuffer();
-    resp.readable.pipe(out);
-    await streamFinished(out);
-    assert.strictEqual(out.getContents().length, dataLen);
+    const buf = await readStream(resp.readable);
+    assert.strictEqual(buf.length, dataLen);
   });
 
   it('creating custom context works', async () => {
@@ -91,18 +95,15 @@ describe('Polyglot HTTP Client Tests', () => {
       assert.strictEqual(resp.statusCode, 200);
       assert.strictEqual(resp.headers['content-type'], 'application/json');
   
-      const out = new WritableStreamBuffer();
-      resp.readable.pipe(out);
-      await streamFinished(out);
-      const json = JSON.parse(out.getContents());
+      const buf = await readStream(resp.readable);
+      const json = JSON.parse(buf);
       assert.strictEqual(json['user-agent'], customUserAgent);
     } finally {
       customCtx.reset();
     }
   });
 
-  it('forcing HTTP/1.1 works', async function test() {
-    this.timeout(5000);
+  it('forcing HTTP/1.1 works', async () => {
     // endpoint supporting http2 & http1
     const url = 'https://www.nghttp2.org/httpbin/status/200';
     // default context defaults to http2
@@ -124,21 +125,23 @@ describe('Polyglot HTTP Client Tests', () => {
     }
   });
 
-  it('forcing HTTP/1.1 works', async function test() {
-    this.timeout(5000);
-    // endpoint supporting http2 & http1
-    const url = 'https://www.nghttp2.org/httpbin/status/200';
-    // custom context forces http1
-    const h1Ctx = context({
-      alpnProtocols: [ ALPN_HTTP1_1 ],
-    });
+  it('supports parallel requests', async () => {
+    const N = 100;  // # of parallel requests
+    const TEST_URL = 'https://httpbin.org/bytes/'; // HTTP2
+    // generete array of 'randomized' urls
+    const urls = Array.from({ length: N }, () => Math.floor(Math.random() * N)).map((num) => `${TEST_URL}${num}`);
+
+    // custom context to isolate from side effects of other tests
+    const ctx = context();
     try {
-      const resp = await h1Ctx.request(url);
-      assert.strictEqual(resp.statusCode, 200);
-      assert.strictEqual(resp.httpVersionMajor, 1);
-      assert.strictEqual(resp.httpVersionMinor, 1);
+      // send requests
+      const responses = await Promise.all(urls.map((url) => ctx.request(url)));
+      // read bodies
+      await Promise.all(responses.map((resp) => readStream(resp.readable)));
+      const ok = responses.filter((res) => res.statusCode === 200);
+      assert.strictEqual(ok.length, N);
     } finally {
-      h1Ctx.reset();
+      ctx.reset();
     }
   });
 });

@@ -93,7 +93,7 @@ const h1Request = async (ctx, url, options) => {
         get: (target, property) => {
           if (property === 'createConnection') {
             return (options, cb) => {
-              debug(`reusing socket ${socket.host}`)
+              debug(`agent reusing socket #${socket.id} ${socket.host}`)
               cb(null, socket);
             };
           } else {
@@ -104,13 +104,14 @@ const h1Request = async (ctx, url, options) => {
     } else {
       // no agent, provide createConntection in options 
       opts.createConnection = (url, options) => {
-        debug(`reusing socket ${socket.host}`)
+        debug(`reusing socket  #${socket.id} ${socket.host}`)
         return socket;
       }
     }
   }
 
   return new Promise((resolve, reject) => {
+    debug(`${opts.method} ${url.href}`);
     const req = request(url, opts, (res) => {
       resolve(createResponse(res));
     });

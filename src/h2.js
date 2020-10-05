@@ -22,6 +22,8 @@
 } = require('http2');
 const { Readable } = require('stream');
 
+const { decodeStream } = require('./utils');
+
 const debug = require('debug')('polyglot-http-client:h2');
 
 const IDLE_SESSION_TIMEOUT = 5 * 60 * 1000; // 5m
@@ -33,23 +35,22 @@ const setupContext = (ctx) => {
 }
 
 const resetContext = async ({ h2 }) => {
-  //Object.values(h2.sessionCache).forEach((session) => session.destroy());
-  //return Promise.resolve();
   return Promise.all(Object.values(h2.sessionCache).map((session) => {
     return new Promise((resolve, reject) => session.close(resolve));
   }));
 }
 
-const createResponse = (headers, clientHttp2Stream) => {
+const createResponse = (headers, clientHttp2Stream, onError) => {
   const statusCode = headers[':status'];
   delete headers[':status'];
+
   return {
     statusCode,
 		httpVersion: '2.0',
 		httpVersionMajor: 2,
 		httpVersionMinor: 0,
     headers,
-    readable: clientHttp2Stream
+    readable: decodeStream(statusCode, headers, clientHttp2Stream, onError)
   };
 }
 
@@ -84,11 +85,6 @@ const request = async (ctx, url, options) => {
     }
     session = connect(origin, connectOptions);
     session.setTimeout(IDLE_SESSION_TIMEOUT);
-    session.on('origin', (origins) => {
-      origins.forEach((origin) => {
-        debug(`origin: ${origin}`);
-      });
-    });
     session.once('timeout', () => {
       debug(`session ${origin} timed out`);
       session.close();
@@ -117,13 +113,11 @@ const request = async (ctx, url, options) => {
     debug(`${method} ${url.host}${path}`);
     const req = session.request({ ':method': method, ':path': path, ...headers });
     req.once('response', (headers, flags) => {
-      resolve(createResponse(headers, req));
+      resolve(createResponse(headers, req, reject));
     });
     // send request body?
     if (body instanceof Readable) {
       body.pipe(req);
-    } else if (body instanceof Buffer) {
-      req.write(body);
     } else if (body) {
       req.write(body);
     }

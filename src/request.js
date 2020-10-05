@@ -13,6 +13,7 @@
 'use strict';
 
 const tls = require('tls');
+const { URLSearchParams } = require('url');
 
 const LRU = require('lru-cache');
 const debug = require('debug')('polyglot-http-client');
@@ -33,7 +34,11 @@ const ALPN_PROTOCOLS = [ ALPN_HTTP2, ALPN_HTTP1_1, ALPN_HTTP1_0 ];
 
 const DEFAULT_USER_AGENT = 'polyglot-http-client';
 
-const DEFAULT_OPTIONS = { method: 'GET' };
+// request option defaults
+const DEFAULT_OPTIONS = {
+  method: 'GET',
+  compress: true
+};
 
 let socketIdCounter = 0;
 
@@ -142,6 +147,20 @@ const request = async (ctx, uri, options) => {
       opts.headers['user-agent'] = ctx.userAgent;
     }
   }
+  // some header magic
+  if (opts.body instanceof URLSearchParams) {
+    opts.headers['content-type'] = 'application/x-www-form-urlencoded;charset=UTF-8';
+    opts.body = opts.body.toString();
+  } else if (typeof opts.body === 'object') {
+    opts.body = JSON.stringify(opts.body);
+    if (!opts.headers['content-type']) {
+      opts.headers['content-type'] = 'application/json';
+    }
+  }
+
+  if (opts.compress && !opts.headers['accept-encoding']) {
+		opts.headers['accept-encoding'] = 'gzip,deflate,br';
+	}
 
   // delegate to protocol-specific request handler
   const { protocol, socket = null } = await determineProtocol(ctx, url);

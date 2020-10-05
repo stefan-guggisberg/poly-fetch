@@ -16,6 +16,7 @@
 
 const assert = require('assert');
 const stream = require('stream');
+const { URLSearchParams } = require('url');
 const { promisify } = require('util');
 
 const isStream = require('is-stream');
@@ -143,5 +144,64 @@ describe('Polyglot HTTP Client Tests', () => {
     } finally {
       ctx.reset();
     }
+  });
+
+  it('fetch supports json POST', async () => {
+    const method = 'POST';
+    const body = { foo: 'bar' };
+    const resp = await defaultCtx.request('https://httpbin.org/post', { method, body });
+    assert.strictEqual(resp.statusCode, 200);
+    assert.strictEqual(resp.headers['content-type'], 'application/json');
+    const buf = await readStream(resp.readable);
+    const jsonResponseBody = JSON.parse(buf);
+    assert(typeof jsonResponseBody === 'object');
+    assert.deepStrictEqual(jsonResponseBody.json, body);
+  });
+
+  it('supports URLSearchParams body', async () => {
+    const params = {
+      name: 'André Citroën',
+      rumple: 'stiltskin',
+    };
+    const method = 'POST';
+    const body = new URLSearchParams(params);
+    const resp = await defaultCtx.request('https://httpbin.org/post', { method, body });
+    assert.strictEqual(resp.statusCode, 200);
+    assert.strictEqual(resp.headers['content-type'], 'application/json');
+    const buf = await readStream(resp.readable);
+    const jsonResponseBody = JSON.parse(buf);
+    assert(typeof jsonResponseBody === 'object');
+    assert.strictEqual(jsonResponseBody.headers['Content-Type'], 'application/x-www-form-urlencoded;charset=UTF-8');
+    assert.deepStrictEqual(jsonResponseBody.form, params);
+  });
+
+  it('supports gzip content encoding', async () => {
+    const resp = await defaultCtx.request('https://httpbin.org/gzip');
+    assert.strictEqual(resp.statusCode, 200);
+    assert.strictEqual(resp.headers['content-type'], 'application/json');
+    const buf = await readStream(resp.readable);
+    const jsonResponseBody = JSON.parse(buf);
+    assert(typeof jsonResponseBody === 'object');
+    assert.strictEqual(jsonResponseBody.gzipped, true);
+  });
+
+  it('supports deflate content encoding', async () => {
+    const resp = await defaultCtx.request('https://httpbin.org/deflate');
+    assert.strictEqual(resp.statusCode, 200);
+    assert.strictEqual(resp.headers['content-type'], 'application/json');
+    const buf = await readStream(resp.readable);
+    const jsonResponseBody = JSON.parse(buf);
+    assert(typeof jsonResponseBody === 'object');
+    assert.strictEqual(jsonResponseBody.deflated, true);
+  });
+
+  it('supports brotli content encoding', async () => {
+    const resp = await defaultCtx.request('https://httpbin.org/brotli');
+    assert.strictEqual(resp.statusCode, 200);
+    assert.strictEqual(resp.headers['content-type'], 'application/json');
+    const buf = await readStream(resp.readable);
+    const jsonResponseBody = JSON.parse(buf);
+    assert(typeof jsonResponseBody === 'object');
+    assert.strictEqual(jsonResponseBody.brotli, true);
   });
 });

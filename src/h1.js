@@ -16,6 +16,8 @@ const http = require('http');
 const https = require('https');
 const { Readable } = require('stream');
 
+const { decodeStream } = require('./utils');
+
 const debug = require('debug')('polyglot-http-client:h1');
 
 const getAgent = (ctx, protocol) => {
@@ -61,7 +63,7 @@ const resetContext = async ({ h1 }) => {
   }  
 }
 
-const createResponse = (incomingMessage) => {
+const createResponse = (incomingMessage, onError) => {
   const {
     statusCode,
     httpVersion,
@@ -75,7 +77,7 @@ const createResponse = (incomingMessage) => {
     httpVersionMajor,
     httpVersionMinor,
     headers,
-    readable: incomingMessage
+    readable: decodeStream(statusCode, headers, incomingMessage, onError)
   };
 }
 
@@ -113,14 +115,12 @@ const h1Request = async (ctx, url, options) => {
   return new Promise((resolve, reject) => {
     debug(`${opts.method} ${url.href}`);
     const req = request(url, opts, (res) => {
-      resolve(createResponse(res));
+      resolve(createResponse(res, reject));
     });
     req.on('error', reject);
     // send request body?
     if (body instanceof Readable) {
       body.pipe(req);
-    } else if (body instanceof Buffer) {
-      req.write(body);
     } else if (body) {
       req.write(body);
     }

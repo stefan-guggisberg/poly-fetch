@@ -8,6 +8,7 @@
 * [x] Promise API/`async & await`
 * [x] Streaming support
 * [x] HTTP/2 request and response multiplexing support
+* [x] Support gzip/deflate/br content encoding
 * [ ] HTTP/2 Server Push support
 * [ ] Redirect support
 * [x] overridable User-Agent

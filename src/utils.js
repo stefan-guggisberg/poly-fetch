@@ -42,7 +42,7 @@ function decodeStream(statusCode, headers, readableStream, onError) {
   switch (headers['content-encoding'].trim()) {
     case 'gzip':
     case 'x-gzip':
-    // always using Z_SYNC_FLUSH is what cURL does.
+    // use Z_SYNC_FLUSH like cURL does
     return pipeline(readableStream, createGunzip({ flush: Z_SYNC_FLUSH, finishFlush: Z_SYNC_FLUSH }), cb);
 
     case 'deflate':

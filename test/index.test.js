@@ -27,6 +27,9 @@ const { request, context, reset, ALPN_HTTP1_1 } = require('../src/index');
 
 const streamFinished = promisify(stream.finished);
 
+const WOKEUP = 'woke up!';
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms, WOKEUP));
+
 const readStream = async (stream) => {
   const out = new WritableStreamBuffer();
   stream.pipe(out);
@@ -203,5 +206,35 @@ describe('Polyglot HTTP Client Tests', () => {
     const jsonResponseBody = JSON.parse(buf);
     assert(typeof jsonResponseBody === 'object');
     assert.strictEqual(jsonResponseBody.brotli, true);
+  });
+
+  it('supports HTTP/2 server push', async () => {
+
+    let customCtx;
+    const pushedResource = new Promise((resolve) => {
+      const pushHandler = (url, response) => {
+        resolve({ url, response });
+      }
+      customCtx = context({ h2: { pushHandler }});
+    });
+
+    try {
+      // see https://nghttp2.org/blog/2015/02/10/nghttp2-dot-org-enabled-http2-server-push/
+      const resp = await customCtx.request('https://nghttp2.org');
+      assert.strictEqual(resp.httpVersionMajor, 2);
+      assert.strictEqual(resp.statusCode, 200);
+      assert.strictEqual(resp.headers['content-type'], 'text/html');
+      let buf = await readStream(resp.readable);
+      assert.strictEqual(+resp.headers['content-length'], buf.length);
+      // pushed resource 
+      const { url, response } = await pushedResource;
+      assert.strictEqual(url, 'https://nghttp2.org/stylesheets/screen.css');
+      assert.strictEqual(response.statusCode, 200);
+      assert.strictEqual(response.headers['content-type'], 'text/css');
+      buf = await readStream(response.readable);
+      assert.strictEqual(+response.headers['content-length'], buf.length);
+    } finally {
+      await customCtx.reset();
+    }
   });
 });

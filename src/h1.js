@@ -21,7 +21,7 @@ const { decodeStream } = require('./utils');
 const debug = require('debug')('polyglot-http-client:h1');
 
 const getAgent = (ctx, protocol) => {
-  const { h1, options: { h1: opts} } = ctx;
+  const { h1, options: { h1: opts } } = ctx;
 
   if (protocol === 'https:') {
     // secure http

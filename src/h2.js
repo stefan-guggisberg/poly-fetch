@@ -29,18 +29,17 @@ const debug = require('debug')('polyglot-http-client:h2');
 const IDLE_SESSION_TIMEOUT = 5 * 60 * 1000; // 5m
 
 const setupContext = (ctx) => {
-  const { options: { h2: { idleSessionTimeout = IDLE_SESSION_TIMEOUT } = {} } } = ctx;
   ctx.h2 = { sessionCache: {} };
-  ctx.h2.idleSessionTimeout = idleSessionTimeout;
 }
 
 const resetContext = async ({ h2 }) => {
   return Promise.all(Object.values(h2.sessionCache).map((session) => {
+    // TODO: if there are pushed streams which aren't consumed yet session.close() will hang, i.e. the callback won't be called. Use session.destroy() ?
     return new Promise((resolve, reject) => session.close(resolve));
   }));
 }
 
-const createResponse = (headers, clientHttp2Stream, onError) => {
+const createResponse = (headers, clientHttp2Stream, onError = () => {}) => {
   const statusCode = headers[':status'];
   delete headers[':status'];
 
@@ -54,11 +53,48 @@ const createResponse = (headers, clientHttp2Stream, onError) => {
   };
 }
 
+const handlePush = (ctx, origin, pushedStream, requestHeaders, flags) => {
+  const { options: { h2: { pushPromiseHandler, pushHandler } } } = ctx;
+  
+  const path = requestHeaders[':path'];
+  const url = `${origin}${path}`;
+
+  debug(`received PUSH_PROMISE: ${url}, stream #${pushedStream.id}, headers: ${JSON.stringify(requestHeaders)}, flags: ${flags}`);
+  if (pushPromiseHandler) {
+    const rejectPush = () => {
+      // pushedStream.destroy() will send an RST_STREAM frame 
+      pushedStream.destroy();
+    };
+    pushPromiseHandler(url, rejectPush);
+  }
+  // TODO: set timeout to automatically discard pushed streams that aren't consumed for some time? 
+  pushedStream.on('push', (responseHeaders, flags) => {
+    // received headers for the pushed streamn
+    // similar to 'response' event on ClientHttp2Stream
+    debug(`received push headers for ${origin}${path}, stream #${pushedStream.id}, headers: ${JSON.stringify(responseHeaders)}, flags: ${flags}`);
+    if (pushHandler) {
+      pushHandler(url, createResponse(responseHeaders, pushedStream));  
+    }
+  });
+  // log stream errors
+  pushedStream.on('aborted', () => {
+    debug(`pushed stream #${pushedStream.id} aborted`);
+  });
+  pushedStream.on('error', (err) => {
+    debug(`pushed stream #${pushedStream.id} encountered error: ${err}`);
+  });
+  pushedStream.on('frameError', (type, code, id) => {
+    debug(`pushed stream #${pushedStream.id} encountered frameError: type: ${type}, code: ${code}, id: ${id}`);
+  });
+
+};
+
 const request = async (ctx, url, options) => {
   const { origin, pathname, search, hash } = url;
   const path = `${pathname || '/'}${search}${hash}`;
 
-  const { options: { h2: ctxOpts }, ctxOptions, h2: { sessionCache }} = ctx;
+  const { options: { h2: ctxOpts = {} }, h2: { sessionCache } } = ctx;
+  const { idleSessionTimeout = IDLE_SESSION_TIMEOUT, pushPromiseHandler, pushHandler } = ctxOpts;
 
   const opts = { ...options };
   const { method, headers = {}, socket, body } = opts;
@@ -70,50 +106,70 @@ const request = async (ctx, url, options) => {
     delete headers.host;
   }
 
-  // lookup session from session cache
-  let session = sessionCache[origin];
-  if (!session || session.closed) {
-    // connect and setup new session
-    // (connect options: https://nodejs.org/api/http2.html#http2_http2_connect_authority_options_listener)
-    const connectOptions = ctxOpts || {};
-    if (socket) {
-      // reuse socket
-      connectOptions.createConnection = (url, options) => {
-        debug(`reusing socket #${socket.id} ${url.hostname}`)
-        return socket;
-      }
-    }
-    session = connect(origin, connectOptions);
-    session.setTimeout(IDLE_SESSION_TIMEOUT);
-    session.once('timeout', () => {
-      debug(`session ${origin} timed out`);
-      session.close();
-    });
-    session.once('close', () => {
-      debug(`session ${origin} closed`);
-      delete sessionCache[origin];
-    });
-    session.on('error', (err) => {
-      debug(`session ${origin} encountered error: ${err}`);
-      // TODO: propagate error
-    });
-    sessionCache[origin] = session;
-  } else {
-    // we have a cached session 
-    if (socket) {
-      if (socket.id !== session.socket.id) {
-        // we have no use for the passed socket
-        debug(`discarding redundant socket used for ALPN: #${socket.id} ${socket.host}`);
-        socket.destroy();
-      }
-    }
-  }
-
   return new Promise((resolve, reject) => {
+    // lookup session from session cache
+    let session = sessionCache[origin];
+    if (!session || session.closed) {
+      // connect and setup new session
+      // (connect options: https://nodejs.org/api/http2.html#http2_http2_connect_authority_options_listener)
+      const connectOptions = ctxOpts;
+      if (socket) {
+        // reuse socket
+        connectOptions.createConnection = (url, options) => {
+          debug(`reusing socket #${socket.id} ${url.hostname}`)
+          return socket;
+        }
+      }
+      
+      const enablePush = !!(pushPromiseHandler || pushHandler);
+      session = connect(origin, { ...connectOptions, settings: { enablePush } });
+      session.setTimeout(idleSessionTimeout);
+      session.once('timeout', () => {
+        debug(`closing session ${origin} after ${idleSessionTimeout} ms of inactivity`);
+        session.close();
+      });
+      session.once('connect', () => {
+        debug(`session ${origin} established`);
+      });
+      session.once('localSettings', (settings) => {
+        debug(`session ${origin} setttings: ${JSON.stringify(settings)}`);
+      });
+      session.once('close', () => {
+        debug(`session ${origin} closed`);
+        delete sessionCache[origin];
+      });
+      session.once('error', (err) => {
+        debug(`session ${origin} encountered error: ${err}`);
+        reject(err);  // TODO: correct? 
+      });
+      session.on('frameError', (type, code, id) => {
+        debug(`session ${origin} encountered frameError: type: ${type}, code: ${code}, id: ${id}`);
+      });
+      session.once('goaway', (errorCode, lastStreamID, opaqueData) => {
+        debug(`session ${origin} received GOAWAY frame: errorCode: ${errorCode}, lastStreamID: ${lastStreamID}, opaqueData: ${opaqueData ? opaqueData.toString() : undefined}`);
+      });
+      session.on('stream', (stream, headers, flags) => {
+        handlePush(ctx, origin, stream, headers, flags);
+      });
+      sessionCache[origin] = session;
+    } else {
+      // we have a cached session 
+      if (socket) {
+        if (socket.id !== session.socket.id) {
+          // we have no use for the passed socket
+          debug(`discarding redundant socket used for ALPN: #${socket.id} ${socket.host}`);
+          socket.destroy();
+        }
+      }
+    }
+
     debug(`${method} ${url.host}${path}`);
     const req = session.request({ ':method': method, ':path': path, ...headers });
     req.once('response', (headers, flags) => {
       resolve(createResponse(headers, req, reject));
+    });
+    req.on('push', (headers, flags) => {
+      debug(`received 'push' event: headers: ${JSON.stringify(headers)}, flags: ${flags}`);
     });
     // send request body?
     if (body instanceof Readable) {

@@ -23,9 +23,10 @@ const {
 } = require('./request');
 
 class RequestContext {
+
   constructor(options) {
     // setup context
-    this.options = options || {};
+    this.options = { ...(options || {}) };
     setupContext(this);
   }
 

@@ -237,4 +237,37 @@ describe('Polyglot HTTP Client Tests', () => {
       await customCtx.reset();
     }
   });
+
+  it('HTTP/2 server push can be rejected', async function test() {
+    this.timeout(5000);
+
+    const pushPromiseHandler = (url, reject) => {
+      // we're not interested, cancel push promise
+      reject();
+    }
+
+    let customCtx;
+    const pushedResource = new Promise((resolve, reject) => {
+      const pushHandler = (url, response) => {
+        resolve(url);
+      }
+      customCtx = context({ h2: { pushPromiseHandler, pushHandler }});
+    });
+
+    try {
+      // see https://nghttp2.org/blog/2015/02/10/nghttp2-dot-org-enabled-http2-server-push/
+      const resp = await customCtx.request('https://nghttp2.org');
+      assert.strictEqual(resp.httpVersionMajor, 2);
+      assert.strictEqual(resp.statusCode, 200);
+      assert.strictEqual(resp.headers['content-type'], 'text/html');
+      let buf = await readStream(resp.readable);
+      assert.strictEqual(+resp.headers['content-length'], buf.length);
+
+      // resolves with either WOKEUP or the url of the pushed resource
+      const result = await Promise.race([sleep(2000), pushedResource]);
+      assert.strictEqual(result, WOKEUP);
+    } finally {
+      await customCtx.reset();
+    }
+  });
 });

@@ -90,6 +90,11 @@ export interface Http2Options {
   idleSessionTimeout?: number;
   pushPromiseHandler?: PushPromiseHandler;
   pushHandler?: PushHandler;
+  /**
+   * Max idle time in milliseconds after which a pushed stream will be automatically closed. 
+   * @default 5000
+   */
+  pushedStreamIdleTimeout?: number;
 };
 
 export interface ContextOptions {

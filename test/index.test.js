@@ -209,7 +209,6 @@ describe('Polyglot HTTP Client Tests', () => {
   });
 
   it('supports HTTP/2 server push', async () => {
-
     let customCtx;
     const pushedResource = new Promise((resolve) => {
       const pushHandler = (url, response) => {
@@ -266,6 +265,37 @@ describe('Polyglot HTTP Client Tests', () => {
       // resolves with either WOKEUP or the url of the pushed resource
       const result = await Promise.race([sleep(2000), pushedResource]);
       assert.strictEqual(result, WOKEUP);
+    } finally {
+      await customCtx.reset();
+    }
+  });
+
+  it('supports timeout for idle pushed streams', async () => {
+    let customCtx;
+    const pushedResource = new Promise((resolve) => {
+      const pushHandler = (url, response) => {
+        resolve({ url, response });
+      }
+      // automatically close idle pushed streams after 100ms
+      // without this setting the test will timeout after 2000ms while 
+      // waiting on customCtx.reset()
+      customCtx = context({ h2: { pushHandler, pushedStreamIdleTimeout: 100 }});
+    });
+
+    try {
+      // see https://nghttp2.org/blog/2015/02/10/nghttp2-dot-org-enabled-http2-server-push/
+      const resp = await customCtx.request('https://nghttp2.org');
+      assert.strictEqual(resp.httpVersionMajor, 2);
+      assert.strictEqual(resp.statusCode, 200);
+      assert.strictEqual(resp.headers['content-type'], 'text/html');
+      let buf = await readStream(resp.readable);
+      assert.strictEqual(+resp.headers['content-length'], buf.length);
+      // pushed resource 
+      const { url, response } = await pushedResource;
+      assert.strictEqual(url, 'https://nghttp2.org/stylesheets/screen.css');
+      assert.strictEqual(response.statusCode, 200);
+      assert.strictEqual(response.headers['content-type'], 'text/css');
+      // don't consume pushed stream in order to trigger the timeout for idle pushed streams
     } finally {
       await customCtx.reset();
     }

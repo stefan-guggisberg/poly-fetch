@@ -26,7 +26,10 @@ const { decodeStream } = require('./utils');
 
 const debug = require('debug')('polyglot-http-client:h2');
 
-const IDLE_SESSION_TIMEOUT = 5 * 60 * 1000; // 5m
+const { NGHTTP2_CANCEL } = constants;
+
+const SESSION_IDLE_TIMEOUT = 5 * 60 * 1000; // 5m
+const PUSHED_STREAM_IDLE_TIMEOUT = 5000; // 5s
 
 const setupContext = (ctx) => {
   ctx.h2 = { sessionCache: {} };
@@ -34,9 +37,17 @@ const setupContext = (ctx) => {
 
 const resetContext = async ({ h2 }) => {
   return Promise.all(Object.values(h2.sessionCache).map((session) => {
-    // TODO: if there are pushed streams which aren't consumed yet session.close() will hang, i.e. the callback won't be called. Use session.destroy() ?
+    // TODO: if there are pushed streams which aren't consumed yet session.close() will hang, 
+    // i.e. the callback won't be called. Use session.destroy() ?
     return new Promise((resolve, reject) => session.close(resolve));
   }));
+  /*
+  // we're seeing occasional segfaults when destroying the session ...
+  const sessions = Object.values(h2.sessionCache);
+  for (const session of sessions) {
+    session.destroy();
+  }
+  */
 }
 
 const createResponse = (headers, clientHttp2Stream, onError = () => {}) => {
@@ -54,7 +65,7 @@ const createResponse = (headers, clientHttp2Stream, onError = () => {}) => {
 }
 
 const handlePush = (ctx, origin, pushedStream, requestHeaders, flags) => {
-  const { options: { h2: { pushPromiseHandler, pushHandler } } } = ctx;
+  const { options: { h2: { pushPromiseHandler, pushHandler, pushedStreamIdleTimeout = PUSHED_STREAM_IDLE_TIMEOUT } } } = ctx;
   
   const path = requestHeaders[':path'];
   const url = `${origin}${path}`;
@@ -62,16 +73,22 @@ const handlePush = (ctx, origin, pushedStream, requestHeaders, flags) => {
   debug(`received PUSH_PROMISE: ${url}, stream #${pushedStream.id}, headers: ${JSON.stringify(requestHeaders)}, flags: ${flags}`);
   if (pushPromiseHandler) {
     const rejectPush = () => {
-      // pushedStream.destroy() will send an RST_STREAM frame 
-      pushedStream.destroy();
+      pushedStream.close(NGHTTP2_CANCEL);
     };
+    // give handler opportunity to reject the push
     pushPromiseHandler(url, rejectPush);
   }
-  // TODO: set timeout to automatically discard pushed streams that aren't consumed for some time? 
   pushedStream.on('push', (responseHeaders, flags) => {
     // received headers for the pushed streamn
     // similar to 'response' event on ClientHttp2Stream
     debug(`received push headers for ${origin}${path}, stream #${pushedStream.id}, headers: ${JSON.stringify(responseHeaders)}, flags: ${flags}`);
+
+    // set timeout to automatically discard pushed streams that aren't consumed for some time
+    pushedStream.setTimeout(pushedStreamIdleTimeout, () => {
+      debug(`closing pushed stream #${pushedStream.id} after ${pushedStreamIdleTimeout} ms of inactivity`);
+      pushedStream.close(NGHTTP2_CANCEL);
+    }); 
+
     if (pushHandler) {
       pushHandler(url, createResponse(responseHeaders, pushedStream));  
     }
@@ -94,7 +111,7 @@ const request = async (ctx, url, options) => {
   const path = `${pathname || '/'}${search}${hash}`;
 
   const { options: { h2: ctxOpts = {} }, h2: { sessionCache } } = ctx;
-  const { idleSessionTimeout = IDLE_SESSION_TIMEOUT, pushPromiseHandler, pushHandler } = ctxOpts;
+  const { idleSessionTimeout = SESSION_IDLE_TIMEOUT, pushPromiseHandler, pushHandler } = ctxOpts;
 
   const opts = { ...options };
   const { method, headers = {}, socket, body } = opts;
@@ -123,8 +140,7 @@ const request = async (ctx, url, options) => {
       
       const enablePush = !!(pushPromiseHandler || pushHandler);
       session = connect(origin, { ...connectOptions, settings: { enablePush } });
-      session.setTimeout(idleSessionTimeout);
-      session.once('timeout', () => {
+      session.setTimeout(idleSessionTimeout, () => {
         debug(`closing session ${origin} after ${idleSessionTimeout} ms of inactivity`);
         session.close();
       });

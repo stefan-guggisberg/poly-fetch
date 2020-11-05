@@ -19,6 +19,8 @@
   "homepage": "https://github.com/stefan-guggisberg/polyglot-http-client#readme",
   "dependencies": {
     "debug": "^4.2.0",
+    "form-data": "3.0.0",
+    "get-stream": "6.0.0",
     "lru-cache": "^5.1.1"
   },
   "devDependencies": {

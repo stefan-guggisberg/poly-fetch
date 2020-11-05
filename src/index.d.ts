@@ -82,7 +82,6 @@ export type PushHandler = (
 ) => void;
 
 export interface Http2Options {
-  enablePush?: boolean;
   /**
    * Max idle time in milliseconds after which a session will be automatically closed. 
    * @default 5 * 60 * 1000
@@ -103,4 +102,17 @@ export interface ContextOptions {
   alpnProtocols?: ReadonlyArray< ALPNProtocol >;
   h1?: Http1Options;
   h2?: Http2Options;
+};
+
+export interface RequestOptions {
+  /**
+   * A string specifying the HTTP request method.
+   * @default 'GET'
+   */
+  method?: 'GET' | 'HEAD' | 'POST' | 'PUT' | 'DELETE' | 'OPTIONS' | 'PATCH';
+  /**
+   * A boolean specifying support of gzip/deflate/brotli content encoding.
+   * @default true
+   */
+	compress?: boolean;
 };

@@ -12,3 +12,4 @@
 * [x] HTTP/2 Server Push support
 * [ ] Redirect support
 * [x] overridable User-Agent
+* [x] low-level HTTP/1.* agent/connect options support (e.g. `keepAlive`, `rejectUnauthorized`)

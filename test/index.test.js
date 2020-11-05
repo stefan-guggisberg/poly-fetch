@@ -129,35 +129,6 @@ describe('Polyglot HTTP Client Tests', () => {
     }
   });
 
-  it.only('supports HTTP/1(.1) keep-alive', async () => {
-    // default context: keep-alive is not enabled
-    let resp = await defaultCtx.request('http://httpbin.org/headers');
-    assert.strictEqual(resp.statusCode, 200);
-    assert.strictEqual(resp.httpVersionMajor, 1);
-    let buf = await readStream(resp.readable);
-    let jsonResponseBody = JSON.parse(buf);
-    assert(typeof jsonResponseBody === 'object');
-    assert(jsonResponseBody.headers['Connection'] !== 'keep-alive');
-
-    // custom context enables keep-alive
-    //const h1Ctx = context({ h1: { keepAlive: true, maxSockets: 10 } });
-    const h1Ctx = context({
-      alpnProtocols: [ ALPN_HTTP1_1 ],
-      h1: { keepAlive: true },
-    });
-    try {
-      resp = await h1Ctx.request('https://httpbin.org/headers');
-      assert.strictEqual(resp.statusCode, 200);
-      assert.strictEqual(resp.httpVersionMajor, 1);
-      buf = await readStream(resp.readable);
-      jsonResponseBody = JSON.parse(buf);
-      assert(typeof jsonResponseBody === 'object');
-      assert.strictEqual(jsonResponseBody.headers['Connection'],'keep-alive');
-    } finally {
-      h1Ctx.reset();
-    }
-	});
-
   it('supports parallel requests', async () => {
     const N = 100;  // # of parallel requests
     const TEST_URL = 'https://httpbin.org/bytes/'; // HTTP2

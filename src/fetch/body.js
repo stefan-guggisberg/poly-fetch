@@ -16,9 +16,8 @@ const { Readable } = require('stream');
 
 const getStream = require('get-stream');
 
-const INTERNALS = Symbol('Body internals');
-
 const EMPTY_BUFFER = Buffer.alloc(0);
+const INTERNALS = Symbol('Body internals');
 
 /**
  * Convert a NodeJS Buffer to an ArrayBuffer
@@ -45,7 +44,7 @@ class Body {
   constructor(stream, mimeType) {
     this[INTERNALS] = {
       stream,
-      disturbed = false,
+      disturbed: false,
     };
   }
 
@@ -129,6 +128,6 @@ const consume = async (body) => {
   return getStream.buffer(stream);
 };
 
-modulue.exports = {
+module.exports = {
   Body
 };

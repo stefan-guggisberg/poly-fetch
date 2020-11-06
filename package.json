@@ -4,7 +4,7 @@
   "description": "HTTP Client Library transparently supporting both HTTP/1(.1) and HTTP/2",
   "main": "src/index.js",
   "scripts": {
-    "test": " nyc --reporter=text --reporter=lcov --check-coverage --branches 100 --statements 100 --lines 100 mocha",
+    "test": " nyc --reporter=text --reporter=lcov --check-coverage --branches 100 --statements 100 --lines 100 mocha --recursive",
     "lint": "./node_modules/.bin/eslint ."
   },
   "author": "",

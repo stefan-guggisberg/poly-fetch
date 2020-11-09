@@ -12,7 +12,7 @@
 
 'use strict';
 
-const { Body } = require('./body');
+const { Body, cloneStream } = require('./body');
 const { Headers } = require('./headers');
 
 const INTERNALS = Symbol('Response internals');
@@ -27,7 +27,7 @@ class Response extends Body {
    * Constructs a new Response instance
    * 
    * @constructor
-   * @param {Readable} [body=null] readable stream
+   * @param {Readable|Buffer|String|URLSearchParams} [body=null] (see https://fetch.spec.whatwg.org/#bodyinit-unions)
    * @param {Object} [init={}]
    */
   constructor(body = null, init = {}) {
@@ -40,33 +40,68 @@ class Response extends Body {
       status: init.status || 200,
       statusText: init.statusText || '',
       headers,
-			counter: init.counter,
+      counter: init.counter,
     };
   }
 
   get url() {
-		return this[INTERNALS].url || '';
-	}
+    return this[INTERNALS].url || '';
+  }
 
-	get status() {
-		return this[INTERNALS].status;
-	}
+  get status() {
+    return this[INTERNALS].status;
+  }
 
-	get statusText() {
-		return this[INTERNALS].statusText;
-	}
+  get statusText() {
+    return this[INTERNALS].statusText;
+  }
 
   get ok() {
-		return this[INTERNALS].status >= 200 && this[INTERNALS].status < 300;
-	}
+    return this[INTERNALS].status >= 200 && this[INTERNALS].status < 300;
+  }
 
-	get redirected() {
-		return this[INTERNALS].counter > 0;
-	}
+  get redirected() {
+    return this[INTERNALS].counter > 0;
+  }
 
-	get headers() {
-		return this[INTERNALS].headers;
-	}
+  get headers() {
+    return this[INTERNALS].headers;
+  }
+
+  /**
+   * Create a redirect response.
+   * 
+   * @param {string} url The URL that the new response is to originate from.
+   * @param {number} [status=302] An optional status code for the response (default: 302)
+   * @returns {Response} A Response object.
+   * 
+   * See https://fetch.spec.whatwg.org/#dom-response-redirect
+   */
+  static redirect(url, status = 302) {
+    if (![301, 302, 303, 307, 308].includes(status)) {
+      throw new RangeError('Invalid status code');
+    }
+
+    return new Response(null, {
+      headers: {
+        location: new URL(url).toString(),
+      },
+      status,
+    });
+  }
+
+  /**
+   * Clone this response
+   *
+   * @returns {Response}
+   */
+  clone() {
+    if (this.bodyUsed) {
+      throw new TypeError('Cannot clone: already read');
+    }
+
+    return new Response(cloneStream(this), { ...this[INTERNALS] });
+  }
 }
 
 module.exports = {

@@ -12,7 +12,8 @@
 
 'use strict';
 
-const { Readable } = require('stream');
+const { PassThrough, Readable } = require('stream');
+const { URLSearchParams } = require('url');
 
 const getStream = require('get-stream');
 
@@ -39,13 +40,42 @@ class Body {
    * Constructs a new Body instance
    * 
    * @constructor
-   * @param {Readable} stream readable stream
+   * @param {Readable|Buffer|String|URLSearchParams} [body=null] (see https://fetch.spec.whatwg.org/#bodyinit-unions)
    */
-  constructor(stream, mimeType) {
+  constructor(body = null) {
+    let stream;
+
+    if (body === null) {
+      stream = null;
+    } else if (body instanceof URLSearchParams) {
+      stream = Readable.from(body.toString());
+    } else if (body instanceof Readable) {
+      stream = body;
+    } else if (Buffer.isBuffer(body)) {
+      stream = Readable.from(body);
+    } else if (typeof body === 'string' || body instanceof String) {
+      stream = Readable.from(body);
+    } else {
+      // none of the above: coerce to string 
+      stream = Readable.from(String(body));
+    }
+
     this[INTERNALS] = {
       stream,
       disturbed: false,
+      error: null,
     };
+    if (body instanceof Readable) {
+      stream.on('error', err => {
+        /*
+        TODO: proper error typing
+				const error = err instanceof FetchBaseError ?
+					err :
+          new FetchError(`Invalid response body while trying to fetch ${this.url}: ${err.message}`, 'system', err);
+        */
+				this[INTERNALS].error = err;
+			});
+    }
   }
 
   /**
@@ -54,48 +84,48 @@ class Body {
    * 
    * @return {Promise<Readable>}
    */
-	get body() {
-		return this[INTERNALS].stream;
-	}
+  get body() {
+    return this[INTERNALS].stream;
+  }
 
-	get bodyUsed() {
-		return this[INTERNALS].disturbed;
-	}
+  get bodyUsed() {
+    return this[INTERNALS].disturbed;
+  }
 
   /**
    * Consume the body and return a promise that will resolve to a Node.js Buffer.
    * (extension)
    * 
-	 * @return {Promise<Buffer>}
+   * @return {Promise<Buffer>}
    */
   async buffer() {
     return consume(this);
   }
 
-	/**
+  /**
    * Consume the body and return a promise that will resolve to an ArrayBuffer.
-	 *
-	 * @return {Promise<ArrayBuffer>}
-	 */
+   *
+   * @return {Promise<ArrayBuffer>}
+   */
   async arrayBuffer() {
     return toArrayBuffer(await this.buffer());
   }
 
-	/**
+  /**
    * Consume the body and return a promise that will resolve to a String.
-	 *
-	 * @return {Promise<String>}
-	 */
+   *
+   * @return {Promise<String>}
+   */
   async text() {
     const buf = await consume(this);
     return buf.toString();
   }
 
-	/**
+  /**
    * Consume the body and return a promise that will resolve to the result of JSON.parse(responseText).
-	 *
-	 * @return {Promise<*>}
-	 */
+   *
+   * @return {Promise<*>}
+   */
   async json() {
     return JSON.parse(await this.text());
   }
@@ -106,28 +136,59 @@ class Body {
  *
  * Ref: https://fetch.spec.whatwg.org/#concept-body-consume-body
  *
+ * @param {Body} body
  * @return Promise<Buffer>
  */
 const consume = async (body) => {
-	if (body[INTERNALS].disturbed) {
+  if (body[INTERNALS].disturbed) {
     throw new TypeError('Already read');
-	}
+  }
 
-	body[INTERNALS].disturbed = true;
+  if (body[INTERNALS].error) {
+    throw this[INTERNALS].error;
+  }
 
-	const { stream } = body[INTERNALS];
+  body[INTERNALS].disturbed = true;
 
-	if (stream === null) {
-		return EMPTY_BUFFER;
-	}
+  const { stream } = body[INTERNALS];
 
-	if (!(stream instanceof Readable)) {
-		return EMPTY_BUFFER;
+  if (stream === null) {
+    return EMPTY_BUFFER;
+  }
+
+  if (!(stream instanceof Readable)) {
+    return EMPTY_BUFFER;
   }
   
   return getStream.buffer(stream);
 };
 
+/**
+ * Clone the body's stream.
+ *
+ * @param {Body} body
+ * @return {Readable}
+ */
+const cloneStream = (body) => {
+  if (body[INTERNALS].disturbed) {
+    throw new TypeError('Cannot clone: already read');
+  }
+
+  const { stream } = body[INTERNALS];
+  let result = stream;
+
+  if (stream instanceof Readable) {
+    result = new PassThrough();
+    const clonedStream = new PassThrough();
+    stream.pipe(result);
+    stream.pipe(clonedStream);
+    // set body's stream to cloned stream and return result (i.e. the other clone)
+    body[INTERNALS].stream = clonedStream;
+  }
+  return result;
+};
+
 module.exports = {
-  Body
+  Body,
+  cloneStream
 };

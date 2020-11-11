@@ -69,12 +69,12 @@ class Body {
       stream.on('error', err => {
         /*
         TODO: proper error typing
-				const error = err instanceof FetchBaseError ?
-					err :
+        const error = err instanceof FetchBaseError ?
+          err :
           new FetchError(`Invalid response body while trying to fetch ${this.url}: ${err.message}`, 'system', err);
         */
-				this[INTERNALS].error = err;
-			});
+        this[INTERNALS].error = err;
+      });
     }
   }
 
@@ -130,6 +130,14 @@ class Body {
     return JSON.parse(await this.text());
   }
 }
+
+Object.defineProperties(Body.prototype, {
+  body: { enumerable: true },
+  bodyUsed: { enumerable: true },
+  arrayBuffer: { enumerable: true },
+  json: { enumerable: true },
+  text: { enumerable: true }
+});
 
 /**
  * Consume the body's stream and return a Buffer with the stream's content.

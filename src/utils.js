@@ -57,4 +57,21 @@ function decodeStream(statusCode, headers, readableStream, onError) {
   }
 }
 
-module.exports = { decodeStream };
+function isPlainObject(val) {
+  if (!val || typeof val !== 'object') {
+    return false;
+  }
+  if (Object.prototype.toString.call(val) !== '[object Object]') {
+    return false;
+  }
+  if (Object.getPrototypeOf(val) === null) {
+    return true;
+  }
+  let proto = val;
+  while (Object.getPrototypeOf(proto) !== null) {
+    proto = Object.getPrototypeOf(proto);
+  }
+  return Object.getPrototypeOf(val) === proto;
+}
+
+module.exports = { decodeStream, isPlainObject };

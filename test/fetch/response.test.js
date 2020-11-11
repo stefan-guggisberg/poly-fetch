@@ -24,7 +24,47 @@ const { Response } = require('../../src/fetch');
 
 describe('Response Tests', () => {
 
-  it('should support empty optonis', () => {
+  it('should have attributes conforming to Web IDL', () => {
+    const res = new Response();
+    const enumerableProperties = [];
+    for (const property in res) {
+      enumerableProperties.push(property);
+    }
+
+    for (const toCheck of [
+      'body',
+      'bodyUsed',
+      'arrayBuffer',
+      'json',
+      'text',
+      'url',
+      'status',
+      'ok',
+      'redirected',
+      'statusText',
+      'headers',
+      'clone'
+    ]) {
+      expect(enumerableProperties).to.contain(toCheck);
+    }
+
+    for (const toCheck of [
+      'body',
+      'bodyUsed',
+      'url',
+      'status',
+      'ok',
+      'redirected',
+      'statusText',
+      'headers'
+    ]) {
+      expect(() => {
+        res[toCheck] = 'abc';
+      }).to.throw();
+    }
+  });
+
+  it('should support empty options', () => {
     const res = new Response(Readable.from('a=1'));
     return res.text().then(result => {
       expect(result).to.equal('a=1');

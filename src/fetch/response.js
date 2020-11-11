@@ -104,6 +104,16 @@ class Response extends Body {
   }
 }
 
+Object.defineProperties(Response.prototype, {
+  url: { enumerable: true },
+  status: { enumerable: true },
+  ok: { enumerable: true },
+  redirected: { enumerable: true },
+  statusText: { enumerable: true },
+  headers: { enumerable: true },
+  clone: { enumerable: true },
+});
+
 module.exports = {
   Response
 };

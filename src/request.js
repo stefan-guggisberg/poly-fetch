@@ -21,6 +21,7 @@ const debug = require('debug')('polyglot-http-client');
 const h1 = require('./h1');
 const h2 = require('./h2');
 const lock = require('./lock');
+const { isPlainObject } = require('./utils');
 
 const ALPN_HTTP2 = 'h2';
 const ALPN_HTTP2C = 'h2c';
@@ -148,10 +149,11 @@ const request = async (ctx, uri, options) => {
     }
   }
   // some header magic
+  // TODO: required? logic already exists in Fetch API Request
   if (opts.body instanceof URLSearchParams) {
     opts.headers['content-type'] = 'application/x-www-form-urlencoded;charset=UTF-8';
     opts.body = opts.body.toString();
-  } else if (typeof opts.body === 'object') {
+  } else if (isPlainObject(opts.body)) {
     opts.body = JSON.stringify(opts.body);
     if (!opts.headers['content-type']) {
       opts.headers['content-type'] = 'application/json';

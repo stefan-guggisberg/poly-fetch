@@ -16,10 +16,13 @@ const { Body } = require('./body');
 const { Headers } = require('./headers');
 const { Request } = require('./request');
 const { Response } = require('./response');
+const { AbortController, AbortSignal } = require('./abort');
 
 module.exports = {
   Body,
   Headers,
   Request,
   Response,
+  AbortController,
+  AbortSignal,
 };

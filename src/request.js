@@ -153,6 +153,10 @@ const request = async (ctx, uri, options) => {
   if (opts.body instanceof URLSearchParams) {
     opts.headers['content-type'] = 'application/x-www-form-urlencoded;charset=UTF-8';
     opts.body = opts.body.toString();
+  } else if (typeof opts.body === 'string' || opts.body instanceof String) {
+    if (!opts.headers['content-type']) {
+      opts.headers['content-type'] = 'text/plain;charset=UTF-8';
+    }
   } else if (isPlainObject(opts.body)) {
     opts.body = JSON.stringify(opts.body);
     if (!opts.headers['content-type']) {

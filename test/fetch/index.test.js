@@ -16,6 +16,7 @@
 
 const assert = require('assert');
 const crypto = require('crypto');
+const fs = require('fs');
 const stream = require('stream');
 const { URLSearchParams } = require('url');
 const { promisify } = require('util');
@@ -89,7 +90,7 @@ describe('Fetch Tests', () => {
   it('fetch supports json POST', async () => {
     const method = 'POST';
     const body = { foo: 'bar' };
-    const resp = await fetch('https://httpbin.org/post', { method, body });
+    const resp = await fetch('http://httpbin.org/post', { method, body });
     assert.strictEqual(resp.status, 200);
     assert.strictEqual(resp.headers.get('content-type'), 'application/json');
     const jsonResponseBody = await resp.json();
@@ -289,6 +290,29 @@ describe('Fetch Tests', () => {
     await resp.text();
     // error
     assert.rejects(() => fetch('https://httpstat.us/307', { redirect: 'error' }));
+  });
+
+  it('supports text body', async () => {
+    const method = 'POST';
+    const body = 'hello, world!';
+    const resp = await fetch('https://httpbin.org/post', { method, body });
+    assert.strictEqual(resp.status, 200);
+    assert.strictEqual(resp.headers.get('content-type'), 'application/json');
+    const jsonResponseBody = await resp.json();
+    assert(jsonResponseBody !== null && typeof jsonResponseBody === 'object');
+    assert.strictEqual(jsonResponseBody.headers['Content-Type'], 'text/plain;charset=UTF-8');
+    assert.deepStrictEqual(jsonResponseBody.data, body);
+  });
+
+  it('supports stream body', async () => {
+    const method = 'POST';
+    const body = fs.createReadStream(__filename);
+    const resp = await fetch('https://httpbin.org/post', { method, body });
+    assert.strictEqual(resp.status, 200);
+    assert.strictEqual(resp.headers.get('content-type'), 'application/json');
+    const jsonResponseBody = await resp.json();
+    assert(jsonResponseBody !== null && typeof jsonResponseBody === 'object');
+    assert.deepStrictEqual(jsonResponseBody.data, fs.readFileSync(__filename).toString());
   });
 
   it('fetch supports URLSearchParams body', async () => {

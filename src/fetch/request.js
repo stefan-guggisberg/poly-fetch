@@ -58,11 +58,11 @@ class Request extends Body {
       if (isPlainObject(body)) {
         // extension: support plain js object body (JSON serialization)
         body = JSON.stringify(body);
-        headers.append('content-type', 'application/json');
+        headers.set('content-type', 'application/json');
       } else {
         const contentType = guessContentType(body);
         if (contentType) {
-          headers.append('content-type', contentType);
+          headers.set('content-type', contentType);
         }
       }
     }

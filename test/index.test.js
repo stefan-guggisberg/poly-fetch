@@ -15,6 +15,7 @@
 'use strict';
 
 const assert = require('assert');
+const fs = require('fs');
 const stream = require('stream');
 const { URLSearchParams } = require('url');
 const { promisify } = require('util');
@@ -159,6 +160,31 @@ describe('Polyglot HTTP Client Tests', () => {
     const jsonResponseBody = JSON.parse(buf);
     assert(typeof jsonResponseBody === 'object');
     assert.deepStrictEqual(jsonResponseBody.json, body);
+  });
+
+  it('supports text body', async () => {
+    const method = 'POST';
+    const body = 'hello, world!';
+    const resp = await defaultCtx.request('https://httpbin.org/post', { method, body });
+    assert.strictEqual(resp.statusCode, 200);
+    assert.strictEqual(resp.headers['content-type'], 'application/json');
+    const buf = await readStream(resp.readable);
+    const jsonResponseBody = JSON.parse(buf);
+    assert(typeof jsonResponseBody === 'object');
+    assert.strictEqual(jsonResponseBody.headers['Content-Type'], 'text/plain;charset=UTF-8');
+    assert.deepStrictEqual(jsonResponseBody.data, body);
+  });
+
+  it('supports stream body', async () => {
+    const method = 'POST';
+    const body = fs.createReadStream(__filename);
+    const resp = await defaultCtx.request('https://httpbin.org/post', { method, body });
+    assert.strictEqual(resp.statusCode, 200);
+    assert.strictEqual(resp.headers['content-type'], 'application/json');
+    const buf = await readStream(resp.readable);
+    const jsonResponseBody = JSON.parse(buf);
+    assert(typeof jsonResponseBody === 'object');
+    assert.deepStrictEqual(jsonResponseBody.data, fs.readFileSync(__filename).toString());
   });
 
   it('supports URLSearchParams body', async () => {

@@ -123,10 +123,12 @@ const h1Request = async (ctx, url, options) => {
     // send request body?
     if (body instanceof Readable) {
       body.pipe(req);
-    } else if (body) {
-      req.write(body);
+    } else {
+      if (body) {
+        req.write(body);
+      }
+      req.end();
     }
-    req.end();
   });
 }
 

@@ -135,55 +135,10 @@ describe('Fetch Tests', () => {
     assert.strictEqual(resp.status, 200);
     assert.strictEqual(resp.headers.get('content-type'), 'text/html');
     assert.strictEqual(resp.headers.get('content-length'), (await resp.text()).length);
-    assert.notEqual(url, WOKEUP);
-
-    // check cache for pushed resource (stylesheets/screen.css)
-    nock.disableNetConnect();
-    try {
-      const pushedResp = await fetch(url);
-      assert.strictEqual(pushedresp.httpVersion, '2.0');
-      assert.strictEqual(pushedResp.status, 200);
-      assert(pushedResp.fromCache);
-    } finally {
-      nock.cleanAll();
-      nock.enableNetConnect();
-    }
+    assert.notStrictlyEqual(url, WOKEUP);
   });
 
-  it.skip('timeoutSignal works (slow response)', async function test() {
-    this.timeout(5000);
-    const ts0 = Date.now();
-    try {
-      // the server responds with a 2 second delay, the timeout is set to 1 second.
-      await fetch('https://httpbin.org/delay/2', { cache: 'no-store', signal: timeoutSignal(1000) });
-      assert.fail();
-    } catch (err) {
-      assert(err instanceof AbortError);
-    }
-    const ts1 = Date.now();
-    assert((ts1 - ts0) < 1000 * 1.1);
-  });
-
-  it.skip('timeoutSignal works (dripping response)', async function test() {
-    this.timeout(10000);
-
-    const DRIPPING_DURATION = 5; // seconds
-    const FETCH_TIMEOUT = 3000; // ms
-    const TEST_URL = `https://httpbin.org/drip?duration=${DRIPPING_DURATION}&numbytes=10&code=200&delay=0`;
-
-    const ts0 = Date.now();
-    try {
-      const res = await fetch(TEST_URL, { cache: 'no-store', signal: timeoutSignal(FETCH_TIMEOUT) });
-      await res.buffer();
-      assert.fail();
-    } catch (err) {
-      assert(err instanceof AbortError);
-    }
-    const ts1 = Date.now();
-    assert((ts1 - ts0) < FETCH_TIMEOUT * 1.1);
-  });
-
-  it.skip('AbortController works', async function test() {
+  it.skip('AbortController works (slow response)', async function test() {
     this.timeout(5000);
 
     const controller = new AbortController();
@@ -193,7 +148,29 @@ describe('Fetch Tests', () => {
     const ts0 = Date.now();
     try {
       // the server responds with a 2 second delay, fetch is aborted after 1 second.
-      await fetch('https://httpbin.org/delay/2', { cache: 'no-store', signal });
+      await fetch('https://httpbin.org/delay/2', { signal });
+      assert.fail();
+    } catch (err) {
+      assert(err instanceof AbortError);
+    }
+    const ts1 = Date.now();
+    assert((ts1 - ts0) < 1000 * 1.1);
+  });
+
+  it.skip('AbortController works (dripping response)', async function test() {
+    this.timeout(10000);
+
+    const DRIPPING_DURATION = 5; // seconds
+    const FETCH_TIMEOUT = 3000; // ms
+    const TEST_URL = `https://httpbin.org/drip?duration=${DRIPPING_DURATION}&numbytes=10&code=200&delay=0`;
+
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+    const { signal } = controller;
+
+    const ts0 = Date.now();
+    try {
+      await fetch(TEST_URL, { signal });
       assert.fail();
     } catch (err) {
       assert(err instanceof AbortError);
@@ -353,7 +330,7 @@ describe('Fetch Tests', () => {
     this.timeout(10000);
     // https://github.com/adobe/helix-fetch/issues/52
     const doFetch = async (url) => {
-      const res = await fetch(url, { cache: 'no-store' });
+      const res = await fetch(url);
       assert.strictEqual(res.httpVersion, '2.0');
       const data = await res.text();
       return crypto.createHash('md5').update(data).digest().toString('hex');

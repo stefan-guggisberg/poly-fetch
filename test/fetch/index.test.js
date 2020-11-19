@@ -37,15 +37,23 @@ describe('Fetch Tests', () => {
   });
 
   it('fetch supports HTTP/1(.1)', async () => {
-    const resp = await fetch('http://httpbin.org/status/200');
-    assert.strictEqual(resp.status, 200);
+    const resp = await fetch('http://httpbin.org/status/204');
+    assert.strictEqual(resp.status, 204);
+    assert.strictEqual(resp.ok, true);
     assert.strictEqual(resp.httpVersion, '1.1');
   });
 
   it('fetch supports HTTP/2', async () => {
-    const resp = await fetch('https://www.nghttp2.org/httpbin/status/200');
-    assert.strictEqual(resp.status, 200);
+    const resp = await fetch('https://www.nghttp2.org/httpbin/status/204');
+    assert.strictEqual(resp.status, 204);
+    assert.strictEqual(resp.ok, true);
     assert.strictEqual(resp.httpVersion, '2.0');
+  });
+
+  it('fetch supports non-200 status codes', async () => {
+    const resp = await fetch('https://httpbin.org/status/500');
+    assert.strictEqual(resp.status, 500);
+    assert.strictEqual(resp.ok, false);
   });
 
   it('fetch supports json response body', async () => {
@@ -113,29 +121,33 @@ describe('Fetch Tests', () => {
     assert.rejects(() => fetch('http://httpbin.org/status/200', { method: true }));
   });
 
-  it.skip('fetch supports HTTP/2 server push', async function test() {
-    this.timeout(5000);
-
-    // returns a promise which resolves with the url of the pushed resource
-    const receivedPush = () => new Promise((resolve) => {
-      const handler = (url) => {
-        offPush(handler);
-        resolve(url);
-      };
-      onPush(handler);
+  it('fetch supports HTTP/2 server push', async () => {
+    let customCtx;
+    const pushedResource = new Promise((resolve) => {
+      const pushHandler = (url, response) => {
+        resolve({ url, response });
+      }
+      customCtx = context({ h2: { pushHandler }});
     });
 
-    const [resp, url] = await Promise.all([
+    try {
       // see https://nghttp2.org/blog/2015/02/10/nghttp2-dot-org-enabled-http2-server-push/
-      fetch('https://nghttp2.org'),
-      // resolves with either WOKEUP or the url of the pushed resource
-      Promise.race([sleep(2000), receivedPush()]),
-    ]);
-    assert.strictEqual(resp.httpVersion, '2.0');
-    assert.strictEqual(resp.status, 200);
-    assert.strictEqual(resp.headers.get('content-type'), 'text/html');
-    assert.strictEqual(resp.headers.get('content-length'), (await resp.text()).length);
-    assert.notStrictlyEqual(url, WOKEUP);
+      const resp = await customCtx.fetch('https://nghttp2.org');
+      assert.strictEqual(resp.httpVersion, '2.0');
+      assert.strictEqual(resp.status, 200);
+      assert.strictEqual(resp.headers.get('content-type'), 'text/html');
+      let buf = await resp.buffer();
+      assert.strictEqual(+resp.headers.get('content-length'), buf.length);
+      // pushed resource 
+      const { url, response } = await pushedResource;
+      assert.strictEqual(url, 'https://nghttp2.org/stylesheets/screen.css');
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.headers.get('content-type'), 'text/css');
+      buf = await response.buffer();
+      assert.strictEqual(+response.headers.get('content-length'), buf.length);
+    } finally {
+      await customCtx.reset();
+    }
   });
 
   it.skip('AbortController works (slow response)', async function test() {

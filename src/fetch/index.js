@@ -40,7 +40,7 @@ const fetch = async (ctx, url, options) => {
       httpVersion,
       headers,
       readable
-    }) => new Response(readable, { statusCode, statusText, headers, httpVersion }));
+    }) => new Response(readable, { status: statusCode, statusText, headers, httpVersion }));
  }
 
 class FetchContext {
@@ -48,6 +48,20 @@ class FetchContext {
   constructor(options) {
     // setup context
     this.options = { ...(options || {}) };
+    if (this.options.h2 && this.options.h2.pushHandler) {
+      // HTTP/2 push handler: need to wrap the response
+      const handler = this.options.h2.pushHandler;
+      this.options.h2.pushHandler = (url, response) => {
+        const { 
+          statusCode,
+          statusText,
+          httpVersion,
+          headers,
+          readable
+        } = response;
+        handler(url, new Response(readable, { status: statusCode, statusText, headers, httpVersion }));
+      }
+    }
     this.context = context(this.options);
   }
 

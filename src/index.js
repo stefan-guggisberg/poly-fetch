@@ -31,7 +31,7 @@ class RequestContext {
   }
 
   /**
-   * Returns the `polyglot-http-client` API.
+   * Returns the core API.
    */
   api() {
     return {

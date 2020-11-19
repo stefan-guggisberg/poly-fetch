@@ -66,18 +66,20 @@ const resetContext = async ({ h1 }) => {
 const createResponse = (incomingMessage, onError) => {
   const {
     statusCode,
-    httpVersion,
-    httpVersionMajor,
-    httpVersionMinor,
-    headers
-  } = incomingMessage;
-  return {
-    statusCode,
+    statusMessage,
     httpVersion,
     httpVersionMajor,
     httpVersionMinor,
     headers,
-    readable: decodeStream(statusCode, headers, incomingMessage, onError)
+  } = incomingMessage;
+  return {
+    statusCode,
+    statusText: statusMessage,
+    httpVersion,
+    httpVersionMajor,
+    httpVersionMinor,
+    headers,
+    readable: decodeStream(statusCode, headers, incomingMessage, onError),
   };
 }
 

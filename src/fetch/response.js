@@ -40,6 +40,7 @@ class Response extends Body {
       status: init.status || 200,
       statusText: init.statusText || '',
       headers,
+      httpVersion: init.httpVersion,
       counter: init.counter,
     };
   }
@@ -66,6 +67,11 @@ class Response extends Body {
 
   get headers() {
     return this[INTERNALS].headers;
+  }
+
+  // extension
+  get httpVersion() {
+    return this[INTERNALS].httpVersion;
   }
 
   /**

@@ -56,6 +56,7 @@ const createResponse = (headers, clientHttp2Stream, onError = () => {}) => {
 
   return {
     statusCode,
+    statusText: '',
 		httpVersion: '2.0',
 		httpVersionMajor: 2,
 		httpVersionMinor: 0,

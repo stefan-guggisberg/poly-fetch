@@ -60,7 +60,7 @@ const createResponse = (headers, clientHttp2Stream, onError = () => {}) => {
 		httpVersion: '2.0',
 		httpVersionMajor: 2,
 		httpVersionMinor: 0,
-    headers,
+    headers,  // header names are always lower-cased
     readable: decodeStream(statusCode, headers, clientHttp2Stream, onError)
   };
 }

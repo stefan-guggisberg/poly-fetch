@@ -100,7 +100,7 @@ const determineProtocol = async (ctx, url) => {
       break;
 
     default:
-      throw new Error(`unsupported protocol: ${url.protocol}`);
+      throw new TypeError(`unsupported protocol: ${url.protocol}`);
   }
 
   // negotioate via ALPN
@@ -182,7 +182,7 @@ const request = async (ctx, uri, options) => {
     case ALPN_HTTP1_1:
       return h1.request(ctx, url, socket ? { ...opts, socket } : opts);
     default:
-      throw new Error(`unsupported protocol: ${protocol}`);
+      throw new TypeError(`unsupported protocol: ${protocol}`);
   }
 }
 

@@ -25,7 +25,7 @@ const isStream = require('is-stream');
 const nock = require('nock');
 const { WritableStreamBuffer } = require('stream-buffers');
 
-const { fetch, context, reset, ALPN_HTTP1_1 } = require('../../src/fetch');
+const { fetch, context, reset, ALPN_HTTP1_1, FetchBaseError, FetchError, AbortError } = require('../../src/fetch');
 
 const WOKEUP = 'woke up!';
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms, WOKEUP));
@@ -261,25 +261,63 @@ describe('Fetch Tests', () => {
     assert.strictEqual(hostHeaderValue, host);
   });
 
-  it.skip('supports redirects (GET/HEAD)', async () => {
-    // default (follow)
-    let resp = await fetch('https://httpstat.us/307');
+  it('supports redirect (default)', async () => {
+    const resp = await fetch('https://httpstat.us/307');
     assert.strictEqual(resp.status, 200);
     assert.strictEqual(resp.redirected, true);
-    await resp.text();
-    // manual
-    resp = await fetch('https://httpstat.us/307', { redirect: 'manual' });
-    assert.strictEqual(resp.status, 307);
-    assert.strictEqual(resp.headers.get('location'), 'https://httpstat.us');
-    await resp.text();
-    // follow
-    resp = await fetch('https://httpstat.us/307', { redirect: 'follow' });
-    assert.strictEqual(resp.status, 200);
-    assert.strictEqual(resp.redirected, true);
-    await resp.text();
-    // error
-    assert.rejects(() => fetch('https://httpstat.us/307', { redirect: 'error' }));
   });
+
+  it('supports redirect: follow', async () => {
+    const resp = await fetch('https://httpstat.us/307', { redirect: 'follow' });
+    assert.strictEqual(resp.status, 200);
+    assert.strictEqual(resp.redirected, true);
+  });
+
+  it('supports redirect: manual', async () => {
+    const resp = await fetch('https://httpstat.us/307', { redirect: 'manual' });
+    assert.strictEqual(resp.status, 307);
+    assert.strictEqual(resp.headers.get('location'), 'https://httpstat.us/');
+    assert.strictEqual(resp.redirected, false);
+  });
+
+  it('supports follow option (max-redirect limit)', async () => {
+    // 5 relative redirects, follows: 4
+    assert.rejects(() => fetch('https://httpbingo.org/relative-redirect/5', { follow: 4 }), FetchError);
+  });
+
+  it('supports follow: 0', async () => {
+    assert.rejects(() => fetch('https://httpstat.us/307', { follow: 0 }), FetchError);
+  });
+
+  it('supports redirect: error', async () => {
+    assert.rejects(() => fetch('https://httpstat.us/307', { redirect: 'error' }), FetchError);
+  });
+
+  it('supports multiple redirects', async () => {
+    const resp = await fetch('https://httpbingo.org/relative-redirect/5');
+    assert.strictEqual(resp.status, 200);
+    assert.strictEqual(resp.redirected, true);
+  });
+
+	it('should follow redirect code 303 with GET', async () => {
+		const url = 'https://httpbingo.org/redirect-to?url=http%3A%2F%2Fhttpbin.org%2Fanything&status_code=303';
+    const method = 'POST';
+    const body = 'foo bar';
+    const resp = await fetch(url);
+    assert.strictEqual(resp.status, 200);
+    assert.strictEqual(resp.redirected, true);
+    assert.strictEqual(resp.headers.get('content-type'), 'application/json');
+    const jsonResponseBody = await resp.json();
+    assert(jsonResponseBody !== null && typeof jsonResponseBody === 'object');
+    assert.strictEqual(jsonResponseBody.method, 'GET');
+    assert.strictEqual(jsonResponseBody.data, '');
+	});
+
+  it('fails non-GET redirect if body is a readable stream', async () => {
+    const method = 'POST';
+    const body = stream.Readable.from('foo bar');
+    assert.rejects(() => fetch('http://httpstat.us/307', { method, body }), FetchError);
+	});
 
   it('supports text body', async () => {
     const method = 'POST';

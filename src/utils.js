@@ -34,7 +34,7 @@ function decodeStream(statusCode, headers, readableStream, onError) {
   
   const cb = (err) => {
     if (err) {
-      debug(`encountered error while decodign stream: ${err}`);
+      debug(`encountered error while decoding stream: ${err}`);
       onError(err);
     }
   };

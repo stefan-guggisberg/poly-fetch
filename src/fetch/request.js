@@ -89,7 +89,8 @@ class Request extends Body {
     };
 
     // extension options
-    this.counter = init.counter || input.counter || 0;
+    this.follow = init.follow === undefined ? (!req || req.follow === undefined ? 20 : req.follow) : init.follow;
+    this.counter = init.counter || (req && req.counter) || 0;
   }
 
   get method() {

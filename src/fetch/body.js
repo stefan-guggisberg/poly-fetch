@@ -67,13 +67,10 @@ class Body {
     };
     if (body instanceof Readable) {
       stream.on('error', err => {
-        /*
-        TODO: proper error typing
         const error = err instanceof FetchBaseError ?
           err :
           new FetchError(`Invalid response body while trying to fetch ${this.url}: ${err.message}`, 'system', err);
-        */
-        this[INTERNALS].error = err;
+        this[INTERNALS].error = error;
       });
     }
   }

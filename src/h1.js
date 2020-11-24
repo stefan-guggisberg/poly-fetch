@@ -70,7 +70,7 @@ const createResponse = (incomingMessage, onError) => {
     httpVersion,
     httpVersionMajor,
     httpVersionMinor,
-    headers,
+    headers,  // header names are always lower-cased
   } = incomingMessage;
   return {
     statusCode,

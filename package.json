@@ -1,7 +1,7 @@
 {
-  "name": "polyglot-http-client",
+  "name": "polyglot-fetch",
   "version": "1.0.0",
-  "description": "HTTP Client Library transparently supporting both HTTP/1(.1) and HTTP/2",
+  "description": "Lightweight Fetch implementation transparently supporting both HTTP/1(.1) and HTTP/2",
   "main": "src/index.js",
   "scripts": {
     "test": " nyc --reporter=text --reporter=lcov --check-coverage --branches 100 --statements 100 --lines 100 mocha --recursive",
@@ -14,17 +14,17 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/stefan-guggisberg/polyglot-http-client"
+    "url": "https://github.com/stefan-guggisberg/polyglot-fetch"
   },
   "bugs": {
-    "url": "https://github.com/stefan-guggisberg/polyglot-http-client/issues"
+    "url": "https://github.com/stefan-guggisberg/polyglot-fetch/issues"
   },
-  "homepage": "https://github.com/stefan-guggisberg/polyglot-http-client#readme",
+  "homepage": "https://github.com/stefan-guggisberg/polyglot-fetch#readme",
   "dependencies": {
-    "debug": "^4.2.0",
+    "debug": "4.2.0",
     "form-data": "3.0.0",
     "get-stream": "6.0.0",
-    "lru-cache": "^5.1.1"
+    "lru-cache": "5.1.1"
   },
   "devDependencies": {
     "@adobe/eslint-config-helix": "1.1.3",
@@ -39,7 +39,6 @@
     "is-stream": "2.0.0",
     "istanbul": "1.1.0-alpha.1",
     "mocha": "8.1.3",
-    "nock": "13.0.4",
     "nyc": "15.1.0",
     "sinon": "^9.2.1",
     "stream-buffers": "3.0.2"

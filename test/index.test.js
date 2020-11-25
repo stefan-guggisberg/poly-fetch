@@ -16,16 +16,15 @@
 
 const assert = require('assert');
 const fs = require('fs');
-const stream = require('stream');
+const { finished } = require('stream');
 const { promisify } = require('util');
 
 const isStream = require('is-stream');
-const nock = require('nock');
 const { WritableStreamBuffer } = require('stream-buffers');
 
-const { request, context, reset, ALPN_HTTP1_1 } = require('../src/index');
+const { context, ALPN_HTTP1_1 } = require('../src/core');
 
-const streamFinished = promisify(stream.finished);
+const streamFinished = promisify(finished);
 
 const WOKEUP = 'woke up!';
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms, WOKEUP));
@@ -37,7 +36,6 @@ const readStream = async (stream) => {
 };
 
 describe('Polyglot HTTP Client Tests', () => {
-
   let defaultCtx;
 
   before(async () => {
@@ -47,7 +45,7 @@ describe('Polyglot HTTP Client Tests', () => {
   after(async () => {
     await defaultCtx.reset();
   });
-  
+
   it('supports HTTP/1(.1)', async () => {
     const resp = await defaultCtx.request('http://httpbin.org/status/200');
     assert.strictEqual(resp.statusCode, 200);
@@ -98,7 +96,7 @@ describe('Polyglot HTTP Client Tests', () => {
       const resp = await customCtx.request('https://httpbin.org/user-agent');
       assert.strictEqual(resp.statusCode, 200);
       assert.strictEqual(resp.headers['content-type'], 'application/json');
-  
+
       const buf = await readStream(resp.readable);
       const json = JSON.parse(buf);
       assert.strictEqual(json['user-agent'], customUserAgent);
@@ -117,7 +115,7 @@ describe('Polyglot HTTP Client Tests', () => {
 
     // custom context forces http1
     const h1Ctx = context({
-      alpnProtocols: [ ALPN_HTTP1_1 ],
+      alpnProtocols: [ALPN_HTTP1_1],
     });
     try {
       resp = await h1Ctx.request(url);
@@ -130,7 +128,7 @@ describe('Polyglot HTTP Client Tests', () => {
   });
 
   it('supports parallel requests', async () => {
-    const N = 100;  // # of parallel requests
+    const N = 100; // # of parallel requests
     const TEST_URL = 'https://httpbin.org/bytes/'; // HTTP2
     // generete array of 'randomized' urls
     const urls = Array.from({ length: N }, () => Math.floor(Math.random() * N)).map((num) => `${TEST_URL}${num}`);
@@ -238,8 +236,8 @@ describe('Polyglot HTTP Client Tests', () => {
     const pushedResource = new Promise((resolve) => {
       const pushHandler = (url, response) => {
         resolve({ url, response });
-      }
-      customCtx = context({ h2: { pushHandler }});
+      };
+      customCtx = context({ h2: { pushHandler } });
     });
 
     try {
@@ -250,7 +248,7 @@ describe('Polyglot HTTP Client Tests', () => {
       assert.strictEqual(resp.headers['content-type'], 'text/html');
       let buf = await readStream(resp.readable);
       assert.strictEqual(+resp.headers['content-length'], buf.length);
-      // pushed resource 
+      // pushed resource
       const { url, response } = await pushedResource;
       assert.strictEqual(url, 'https://nghttp2.org/stylesheets/screen.css');
       assert.strictEqual(response.statusCode, 200);
@@ -268,14 +266,14 @@ describe('Polyglot HTTP Client Tests', () => {
     const pushPromiseHandler = (url, reject) => {
       // we're not interested, cancel push promise
       reject();
-    }
+    };
 
     let customCtx;
-    const pushedResource = new Promise((resolve, reject) => {
-      const pushHandler = (url, response) => {
+    const pushedResource = new Promise((resolve) => {
+      const pushHandler = (url) => {
         resolve(url);
-      }
-      customCtx = context({ h2: { pushPromiseHandler, pushHandler }});
+      };
+      customCtx = context({ h2: { pushPromiseHandler, pushHandler } });
     });
 
     try {
@@ -284,7 +282,7 @@ describe('Polyglot HTTP Client Tests', () => {
       assert.strictEqual(resp.httpVersionMajor, 2);
       assert.strictEqual(resp.statusCode, 200);
       assert.strictEqual(resp.headers['content-type'], 'text/html');
-      let buf = await readStream(resp.readable);
+      const buf = await readStream(resp.readable);
       assert.strictEqual(+resp.headers['content-length'], buf.length);
 
       // resolves with either WOKEUP or the url of the pushed resource
@@ -300,11 +298,11 @@ describe('Polyglot HTTP Client Tests', () => {
     const pushedResource = new Promise((resolve) => {
       const pushHandler = (url, response) => {
         resolve({ url, response });
-      }
+      };
       // automatically close idle pushed streams after 100ms
-      // without this setting the test will timeout after 2000ms while 
+      // without this setting the test will timeout after 2000ms while
       // waiting on customCtx.reset()
-      customCtx = context({ h2: { pushHandler, pushedStreamIdleTimeout: 100 }});
+      customCtx = context({ h2: { pushHandler, pushedStreamIdleTimeout: 100 } });
     });
 
     try {
@@ -313,9 +311,9 @@ describe('Polyglot HTTP Client Tests', () => {
       assert.strictEqual(resp.httpVersionMajor, 2);
       assert.strictEqual(resp.statusCode, 200);
       assert.strictEqual(resp.headers['content-type'], 'text/html');
-      let buf = await readStream(resp.readable);
+      const buf = await readStream(resp.readable);
       assert.strictEqual(+resp.headers['content-length'], buf.length);
-      // pushed resource 
+      // pushed resource
       const { url, response } = await pushedResource;
       assert.strictEqual(url, 'https://nghttp2.org/stylesheets/screen.css');
       assert.strictEqual(response.statusCode, 200);

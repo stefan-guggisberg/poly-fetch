@@ -21,10 +21,9 @@ const stream = require('stream');
 const { promisify } = require('util');
 
 const isStream = require('is-stream');
-const nock = require('nock');
 const { WritableStreamBuffer } = require('stream-buffers');
 
-const { fetch, context, reset, ALPN_HTTP1_1, FormData, FetchBaseError, FetchError, AbortError } = require('../../src/fetch');
+const { fetch, context, reset, ALPN_HTTP1_1, FormData, FetchError, AbortError } = require('../../src/fetch');
 
 const WOKEUP = 'woke up!';
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms, WOKEUP));
@@ -298,8 +297,8 @@ describe('Fetch Tests', () => {
     assert.strictEqual(resp.redirected, true);
   });
 
-	it('should follow redirect code 303 with GET', async () => {
-		const url = 'https://httpbingo.org/redirect-to?url=http%3A%2F%2Fhttpbin.org%2Fanything&status_code=303';
+  it('should follow redirect code 303 with GET', async () => {
+    const url = 'https://httpbingo.org/redirect-to?url=http%3A%2F%2Fhttpbin.org%2Fanything&status_code=303';
     const method = 'POST';
     const body = 'foo bar';
     const resp = await fetch(url);
@@ -310,13 +309,13 @@ describe('Fetch Tests', () => {
     assert(jsonResponseBody !== null && typeof jsonResponseBody === 'object');
     assert.strictEqual(jsonResponseBody.method, 'GET');
     assert.strictEqual(jsonResponseBody.data, '');
-	});
+  });
 
   it('fails non-GET redirect if body is a readable stream', async () => {
     const method = 'POST';
     const body = stream.Readable.from('foo bar');
     assert.rejects(() => fetch('http://httpstat.us/307', { method, body }), FetchError);
-	});
+  });
 
   it('supports text body', async () => {
     const method = 'POST';

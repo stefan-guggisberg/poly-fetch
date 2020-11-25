@@ -13,9 +13,14 @@
 'use strict';
 
 const { pipeline } = require('stream');
-const { createGunzip, createInflate, createBrotliDecompress, Z_SYNC_FLUSH } = require('zlib');
+const {
+  createGunzip,
+  createInflate,
+  createBrotliDecompress,
+  Z_SYNC_FLUSH,
+} = require('zlib');
 
-const debug = require('debug')('polyglot-http-client:utils');
+const debug = require('debug')('polyglot-fetch:utils');
 
 function shouldDecode(statusCode, headers) {
   if (statusCode === 204 || statusCode === 304) {
@@ -31,7 +36,7 @@ function decodeStream(statusCode, headers, readableStream, onError) {
   if (!shouldDecode(statusCode, headers)) {
     return readableStream;
   }
-  
+
   const cb = (err) => {
     if (err) {
       debug(`encountered error while decoding stream: ${err}`);
@@ -42,8 +47,12 @@ function decodeStream(statusCode, headers, readableStream, onError) {
   switch (headers['content-encoding'].trim()) {
     case 'gzip':
     case 'x-gzip':
-    // use Z_SYNC_FLUSH like cURL does
-    return pipeline(readableStream, createGunzip({ flush: Z_SYNC_FLUSH, finishFlush: Z_SYNC_FLUSH }), cb);
+      // use Z_SYNC_FLUSH like cURL does
+      return pipeline(
+        readableStream,
+        createGunzip({ flush: Z_SYNC_FLUSH, finishFlush: Z_SYNC_FLUSH }),
+        cb,
+      );
 
     case 'deflate':
     case 'x-deflate':
@@ -51,7 +60,7 @@ function decodeStream(statusCode, headers, readableStream, onError) {
 
     case 'br':
       return pipeline(readableStream, createBrotliDecompress(), cb);
-    
+
     default:
       return readableStream;
   }

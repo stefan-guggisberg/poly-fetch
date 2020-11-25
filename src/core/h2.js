@@ -24,7 +24,7 @@ const { Readable } = require('stream');
 
 const { decodeStream } = require('../common/utils');
 
-const debug = require('debug')('polyglot-http-client:h2');
+const debug = require('debug')('polyglot-fetch:h2');
 
 const { NGHTTP2_CANCEL } = constants;
 

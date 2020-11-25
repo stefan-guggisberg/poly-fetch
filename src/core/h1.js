@@ -18,7 +18,7 @@ const { Readable } = require('stream');
 
 const { decodeStream } = require('../common/utils');
 
-const debug = require('debug')('polyglot-http-client:h1');
+const debug = require('debug')('polyglot-fetch:h1');
 
 const getAgent = (ctx, protocol) => {
   const { h1, options: { h1: opts } } = ctx;

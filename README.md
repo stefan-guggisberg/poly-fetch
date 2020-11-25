@@ -1,6 +1,6 @@
-# polyglot-http-client
+# polyglot-fetch
 
-> Library for making transparent HTTP/1(.1) and HTTP/2 requests.
+> Lightweight Fetch implementation transparently supporting both HTTP/1(.1) and HTTP/2.
 
 ## Features
 
@@ -10,6 +10,6 @@
 * [x] HTTP/2 request and response multiplexing support
 * [x] Support gzip/deflate/br content encoding
 * [x] HTTP/2 Server Push support
-* [ ] Redirect support
+* [x] Redirect support
 * [x] overridable User-Agent
 * [x] low-level HTTP/1.* agent/connect options support (e.g. `keepAlive`, `rejectUnauthorized`)

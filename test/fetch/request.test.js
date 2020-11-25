@@ -17,6 +17,7 @@
 const { Readable } = require('stream');
 
 const chai = require('chai');
+
 const { expect } = chai;
 
 const { Request, AbortController } = require('../../src/fetch');

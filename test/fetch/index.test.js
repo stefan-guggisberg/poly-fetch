@@ -18,14 +18,13 @@ const assert = require('assert');
 const crypto = require('crypto');
 const fs = require('fs');
 const stream = require('stream');
-const { URLSearchParams } = require('url');
 const { promisify } = require('util');
 
 const isStream = require('is-stream');
 const nock = require('nock');
 const { WritableStreamBuffer } = require('stream-buffers');
 
-const { fetch, context, reset, ALPN_HTTP1_1, FetchBaseError, FetchError, AbortError } = require('../../src/fetch');
+const { fetch, context, reset, ALPN_HTTP1_1, FormData, FetchBaseError, FetchError, AbortError } = require('../../src/fetch');
 
 const WOKEUP = 'woke up!';
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms, WOKEUP));
@@ -358,7 +357,7 @@ describe('Fetch Tests', () => {
     assert.deepStrictEqual(jsonResponseBody.form, params);
   });
 
-  it.skip('fetch supports FormData body', async () => {
+  it('fetch supports FormData body', async () => {
     const params = {
       name: 'André Citroën',
       rumple: 'stiltskin',

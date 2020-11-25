@@ -7,6 +7,9 @@
     "test": " nyc --reporter=text --reporter=lcov --check-coverage --branches 100 --statements 100 --lines 100 mocha --recursive",
     "lint": "./node_modules/.bin/eslint ."
   },
+  "engines": {
+    "node": ">=10.0"
+  },
   "author": "",
   "license": "Apache-2.0",
   "repository": {

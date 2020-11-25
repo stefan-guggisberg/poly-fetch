@@ -15,7 +15,6 @@
 'use strict';
 
 const { Readable } = require('stream');
-const { URLSearchParams } = require('url');
 
 const chai = require('chai');
 const { expect } = chai;

@@ -24,6 +24,8 @@ const { AbortController, AbortSignal } = require('./abort');
 // core abstraction layer
 const { context } = require('../index');
 
+const FormData = require('form-data');
+
 const fetch = async (ctx, url, options = {}) => {
   const { request } = ctx.context;
 
@@ -31,21 +33,6 @@ const fetch = async (ctx, url, options = {}) => {
 
   // TODO: implement abort logic
   const { signal } = req;
-/*
-  return request(req.url, {
-    ...options,
-    method: req.method,
-    headers: req.headers.plain(),
-    body: req.body,
-  })
-    .then(({ 
-      statusCode,
-      statusText,
-      httpVersion,
-      headers,
-      readable
-    }) => new Response(readable, { status: statusCode, statusText, headers, httpVersion }));
-*/
   
   let resp;
   try {
@@ -186,6 +173,7 @@ class FetchContext {
       Response,
       AbortController,
       AbortSignal,
+      FormData,
 
       // extensions
 

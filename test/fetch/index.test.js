@@ -375,7 +375,7 @@ describe('Fetch Tests', () => {
     assert.deepStrictEqual(jsonResponseBody.form, params);
   });
 
-  it('handles concurrent http2 requests', async function test() {
+  it('handles concurrent http2 requests to subdomains sharing the same IP address (using wildcard SAN cert)', async function test() {
     this.timeout(10000);
     // https://github.com/adobe/helix-fetch/issues/52
     const doFetch = async (url) => {
@@ -386,11 +386,14 @@ describe('Fetch Tests', () => {
     };
 
     const results = await Promise.all([
-      doFetch('https://helix-fetch--adobe.hlx.page/README.html'),
-      doFetch('https://helix-home--adobe.hlx.page/README.html'),
+      doFetch('https://en.wikipedia.org/wiki/42'),
+      doFetch('https://fr.wikipedia.org/wiki/42'),
+      doFetch('https://it.wikipedia.org/wiki/42'),
     ]);
 
-    assert.strictEqual(results.length, 2);
+    assert.strictEqual(results.length, 3);
     assert.notStrictEqual(results[0], results[1]);
+    assert.notStrictEqual(results[0], results[2]);
+    assert.notStrictEqual(results[1], results[2]);
   });
 });

@@ -13,9 +13,10 @@
 'use strict';
 
 const { PassThrough, Readable } = require('stream');
-const { URLSearchParams } = require('url');
 
 const getStream = require('get-stream');
+
+const FormData = require('form-data');
 
 const EMPTY_BUFFER = Buffer.alloc(0);
 const INTERNALS = Symbol('Body internals');
@@ -40,7 +41,7 @@ class Body {
    * Constructs a new Body instance
    * 
    * @constructor
-   * @param {Readable|Buffer|String|URLSearchParams} [body=null] (see https://fetch.spec.whatwg.org/#bodyinit-unions)
+   * @param {Readable|Buffer|String|URLSearchParams|FormData} [body=null] (see https://fetch.spec.whatwg.org/#bodyinit-unions)
    */
   constructor(body = null) {
     let stream;
@@ -49,6 +50,8 @@ class Body {
       stream = null;
     } else if (body instanceof URLSearchParams) {
       stream = Readable.from(body.toString());
+    } else if (body instanceof FormData) {
+      stream = Readable.from(body.getBuffer());
     } else if (body instanceof Readable) {
       stream = body;
     } else if (Buffer.isBuffer(body)) {

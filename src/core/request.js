@@ -13,7 +13,6 @@
 'use strict';
 
 const tls = require('tls');
-const { URLSearchParams } = require('url');
 
 const LRU = require('lru-cache');
 const debug = require('debug')('polyglot-http-client');
@@ -21,7 +20,7 @@ const debug = require('debug')('polyglot-http-client');
 const h1 = require('./h1');
 const h2 = require('./h2');
 const lock = require('./lock');
-const { isPlainObject } = require('./utils');
+const { isPlainObject } = require('../common/utils');
 
 const ALPN_HTTP2 = 'h2';
 const ALPN_HTTP2C = 'h2c';

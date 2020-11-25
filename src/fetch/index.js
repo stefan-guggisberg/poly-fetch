@@ -22,7 +22,7 @@ const { FetchBaseError, FetchError, AbortError } = require('./errors');
 const { AbortController, AbortSignal } = require('./abort');
 
 // core abstraction layer
-const { context } = require('../index');
+const { context } = require('../core');
 
 const FormData = require('form-data');
 

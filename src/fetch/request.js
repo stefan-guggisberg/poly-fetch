@@ -18,7 +18,7 @@ const { AbortSignal } = require('./abort');
 const { Body, cloneStream } = require('./body');
 const { Headers } = require('./headers');
 
-const { isPlainObject } = require('../utils');
+const { isPlainObject } = require('../common/utils');
 
 const FormData = require('form-data');
 

@@ -22,7 +22,7 @@
 } = require('http2');
 const { Readable } = require('stream');
 
-const { decodeStream } = require('./utils');
+const { decodeStream } = require('../common/utils');
 
 const debug = require('debug')('polyglot-http-client:h2');
 

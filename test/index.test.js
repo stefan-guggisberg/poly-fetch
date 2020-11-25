@@ -17,7 +17,6 @@
 const assert = require('assert');
 const fs = require('fs');
 const stream = require('stream');
-const { URLSearchParams } = require('url');
 const { promisify } = require('util');
 
 const isStream = require('is-stream');

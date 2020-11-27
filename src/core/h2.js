@@ -10,21 +10,21 @@
  * governing permissions and limitations under the License.
  */
 
- 'use strict';
+'use strict';
 
- const {
-  ClientHttp2Session,
-  ClientHttp2Stream,
+const {
+  // ClientHttp2Session,
+  // ClientHttp2Stream,
   connect,
   constants,
-  IncomingHttpHeaders,
-  SecureClientSessionOptions,
+  // IncomingHttpHeaders,
+  // SecureClientSessionOptions,
 } = require('http2');
 const { Readable } = require('stream');
 
-const { decodeStream } = require('../common/utils');
-
 const debug = require('debug')('polyglot-fetch:h2');
+
+const { decodeStream } = require('../common/utils');
 
 const { NGHTTP2_CANCEL } = constants;
 
@@ -33,14 +33,15 @@ const PUSHED_STREAM_IDLE_TIMEOUT = 5000; // 5s
 
 const setupContext = (ctx) => {
   ctx.h2 = { sessionCache: {} };
-}
+};
 
+// eslint-disable-next-line arrow-body-style
 const resetContext = async ({ h2 }) => {
-  return Promise.all(Object.values(h2.sessionCache).map((session) => {
-    // TODO: if there are pushed streams which aren't consumed yet session.close() will hang, 
+  return Promise.all(Object.values(h2.sessionCache).map(
+    // TODO: if there are pushed streams which aren't consumed yet session.close() will hang,
     // i.e. the callback won't be called. Use session.destroy() ?
-    return new Promise((resolve, reject) => session.close(resolve));
-  }));
+    (session) => new Promise((resolve) => session.close(resolve)),
+  ));
   /*
   // we're seeing occasional segfaults when destroying the session ...
   const sessions = Object.values(h2.sessionCache);
@@ -48,26 +49,35 @@ const resetContext = async ({ h2 }) => {
     session.destroy();
   }
   */
-}
+};
 
 const createResponse = (headers, clientHttp2Stream, onError = () => {}) => {
-  const statusCode = headers[':status'];
-  delete headers[':status'];
+  const hdrs = { ...headers };
+  const statusCode = hdrs[':status'];
+  delete hdrs[':status'];
 
   return {
     statusCode,
     statusText: '',
-		httpVersion: '2.0',
-		httpVersionMajor: 2,
-		httpVersionMinor: 0,
-    headers,  // header names are always lower-cased
-    readable: decodeStream(statusCode, headers, clientHttp2Stream, onError)
+    httpVersion: '2.0',
+    httpVersionMajor: 2,
+    httpVersionMinor: 0,
+    headers: hdrs, // header names are always lower-cased
+    readable: decodeStream(statusCode, headers, clientHttp2Stream, onError),
   };
-}
+};
 
 const handlePush = (ctx, origin, pushedStream, requestHeaders, flags) => {
-  const { options: { h2: { pushPromiseHandler, pushHandler, pushedStreamIdleTimeout = PUSHED_STREAM_IDLE_TIMEOUT } } } = ctx;
-  
+  const {
+    options: {
+      h2: {
+        pushPromiseHandler,
+        pushHandler,
+        pushedStreamIdleTimeout = PUSHED_STREAM_IDLE_TIMEOUT,
+      },
+    },
+  } = ctx;
+
   const path = requestHeaders[':path'];
   const url = `${origin}${path}`;
 
@@ -79,19 +89,19 @@ const handlePush = (ctx, origin, pushedStream, requestHeaders, flags) => {
     // give handler opportunity to reject the push
     pushPromiseHandler(url, rejectPush);
   }
-  pushedStream.on('push', (responseHeaders, flags) => {
+  pushedStream.on('push', (responseHeaders, flgs) => {
     // received headers for the pushed streamn
     // similar to 'response' event on ClientHttp2Stream
-    debug(`received push headers for ${origin}${path}, stream #${pushedStream.id}, headers: ${JSON.stringify(responseHeaders)}, flags: ${flags}`);
+    debug(`received push headers for ${origin}${path}, stream #${pushedStream.id}, headers: ${JSON.stringify(responseHeaders)}, flags: ${flgs}`);
 
     // set timeout to automatically discard pushed streams that aren't consumed for some time
     pushedStream.setTimeout(pushedStreamIdleTimeout, () => {
       debug(`closing pushed stream #${pushedStream.id} after ${pushedStreamIdleTimeout} ms of inactivity`);
       pushedStream.close(NGHTTP2_CANCEL);
-    }); 
+    });
 
     if (pushHandler) {
-      pushHandler(url, createResponse(responseHeaders, pushedStream));  
+      pushHandler(url, createResponse(responseHeaders, pushedStream));
     }
   });
   // log stream errors
@@ -104,18 +114,35 @@ const handlePush = (ctx, origin, pushedStream, requestHeaders, flags) => {
   pushedStream.on('frameError', (type, code, id) => {
     debug(`pushed stream #${pushedStream.id} encountered frameError: type: ${type}, code: ${code}, id: ${id}`);
   });
-
 };
 
 const request = async (ctx, url, options) => {
-  const { origin, pathname, search, hash } = url;
+  const {
+    origin, pathname, search, hash,
+  } = url;
   const path = `${pathname || '/'}${search}${hash}`;
 
-  const { options: { h2: ctxOpts = {} }, h2: { sessionCache } } = ctx;
-  const { idleSessionTimeout = SESSION_IDLE_TIMEOUT, pushPromiseHandler, pushHandler } = ctxOpts;
+  const {
+    options: {
+      h2: ctxOpts = {},
+    },
+    h2: {
+      sessionCache,
+    },
+  } = ctx;
+  const {
+    idleSessionTimeout = SESSION_IDLE_TIMEOUT,
+    pushPromiseHandler,
+    pushHandler,
+  } = ctxOpts;
 
   const opts = { ...options };
-  const { method, headers = {}, socket, body } = opts;
+  const {
+    method,
+    headers = {},
+    socket,
+    body,
+  } = opts;
   if (socket) {
     delete opts.socket;
   }
@@ -133,12 +160,12 @@ const request = async (ctx, url, options) => {
       const connectOptions = ctxOpts;
       if (socket) {
         // reuse socket
-        connectOptions.createConnection = (url, options) => {
-          debug(`reusing socket #${socket.id} ${url.hostname}`)
+        connectOptions.createConnection = (/* url, options */) => {
+          debug(`reusing socket #${socket.id} ${url.hostname}`);
           return socket;
-        }
+        };
       }
-      
+
       const enablePush = !!(pushPromiseHandler || pushHandler);
       session = connect(origin, { ...connectOptions, settings: { enablePush } });
       session.setTimeout(idleSessionTimeout, () => {
@@ -157,7 +184,7 @@ const request = async (ctx, url, options) => {
       });
       session.once('error', (err) => {
         debug(`session ${origin} encountered error: ${err}`);
-        reject(err);  // TODO: correct? 
+        reject(err); // TODO: correct?
       });
       session.on('frameError', (type, code, id) => {
         debug(`session ${origin} encountered frameError: type: ${type}, code: ${code}, id: ${id}`);
@@ -165,28 +192,27 @@ const request = async (ctx, url, options) => {
       session.once('goaway', (errorCode, lastStreamID, opaqueData) => {
         debug(`session ${origin} received GOAWAY frame: errorCode: ${errorCode}, lastStreamID: ${lastStreamID}, opaqueData: ${opaqueData ? opaqueData.toString() : undefined}`);
       });
-      session.on('stream', (stream, headers, flags) => {
-        handlePush(ctx, origin, stream, headers, flags);
+      session.on('stream', (stream, hdrs, flags) => {
+        handlePush(ctx, origin, stream, hdrs, flags);
       });
       sessionCache[origin] = session;
     } else {
-      // we have a cached session 
-      if (socket) {
-        if (socket.id !== session.socket.id) {
-          // we have no use for the passed socket
-          debug(`discarding redundant socket used for ALPN: #${socket.id} ${socket.host}`);
-          socket.destroy();
-        }
+      // we have a cached session
+      // eslint-disable-next-line no-lonely-if
+      if (socket && socket.id !== session.socket.id) {
+        // we have no use for the passed socket
+        debug(`discarding redundant socket used for ALPN: #${socket.id} ${socket.host}`);
+        socket.destroy();
       }
     }
 
     debug(`${method} ${url.host}${path}`);
     const req = session.request({ ':method': method, ':path': path, ...headers });
-    req.once('response', (headers, flags) => {
-      resolve(createResponse(headers, req, reject));
+    req.once('response', (hdrs) => {
+      resolve(createResponse(hdrs, req, reject));
     });
-    req.on('push', (headers, flags) => {
-      debug(`received 'push' event: headers: ${JSON.stringify(headers)}, flags: ${flags}`);
+    req.on('push', (hdrs, flags) => {
+      debug(`received 'push' event: headers: ${JSON.stringify(hdrs)}, flags: ${flags}`);
     });
     // send request body?
     if (body instanceof Readable) {
@@ -198,6 +224,6 @@ const request = async (ctx, url, options) => {
       req.end();
     }
   });
-}
+};
 
 module.exports = { request, setupContext, resetContext };

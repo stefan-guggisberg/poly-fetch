@@ -10,7 +10,11 @@
  * governing permissions and limitations under the License.
  */
 
+/* eslint-disable max-classes-per-file */
+
 'use strict';
+
+/* eslint-disable max-classes-per-file */
 
 class FetchBaseError extends Error {
   constructor(message, type) {
@@ -28,7 +32,10 @@ class FetchBaseError extends Error {
 }
 
 /**
- * @typedef {{ address?: string, code: string, dest?: string, errno: number, info?: object, message: string, path?: string, port?: number, syscall: string}} SystemError
+ * @typedef {{
+ *   address?: string, code: string, dest?: string, errno: number, info?: object,
+ *   message: string, path?: string, port?: number, syscall: string
+ * }} SystemError
  */
 
 class FetchError extends FetchBaseError {

@@ -10,15 +10,15 @@
  * governing permissions and limitations under the License.
  */
 
- 'use strict';
+'use strict';
 
 const http = require('http');
 const https = require('https');
 const { Readable } = require('stream');
 
-const { decodeStream } = require('../common/utils');
-
 const debug = require('debug')('polyglot-fetch:h1');
+
+const { decodeStream } = require('../common/utils');
 
 const getAgent = (ctx, protocol) => {
   const { h1, options: { h1: opts } } = ctx;
@@ -29,7 +29,8 @@ const getAgent = (ctx, protocol) => {
       return h1.httpsAgent;
     }
     if (opts) {
-      return h1.httpsAgent = new https.Agent(opts);
+      h1.httpsAgent = new https.Agent(opts);
+      return h1.httpsAgent;
     }
     // use default (global) agent
     return undefined;
@@ -39,29 +40,32 @@ const getAgent = (ctx, protocol) => {
       return h1.httpAgent;
     }
     if (opts) {
-      return h1.httpAgent = new http.Agent(opts);
+      h1.httpAgent = new http.Agent(opts);
+      return h1.httpAgent;
     }
     // use default (global) agent
     return undefined;
   }
-}
+};
 
 const setupContext = (ctx) => {
-  const { options: { h1: opts } } = ctx;
+  // const { options: { h1: opts } } = ctx;
   ctx.h1 = {};
   // custom agents will be lazily instantiated
-}
+};
 
 const resetContext = async ({ h1 }) => {
   if (h1.httpAgent) {
     h1.httpAgent.destroy();
+    // eslint-disable-next-line no-param-reassign
     delete h1.httpAgent;
-  }  
+  }
   if (h1.httpsAgent) {
     h1.httpsAgent.destroy();
+    // eslint-disable-next-line no-param-reassign
     delete h1.httpsAgent;
-  }  
-}
+  }
+};
 
 const createResponse = (incomingMessage, onError) => {
   const {
@@ -70,7 +74,7 @@ const createResponse = (incomingMessage, onError) => {
     httpVersion,
     httpVersionMajor,
     httpVersionMinor,
-    headers,  // header names are always lower-cased
+    headers, // header names are always lower-cased
   } = incomingMessage;
   return {
     statusCode,
@@ -81,7 +85,7 @@ const createResponse = (incomingMessage, onError) => {
     headers,
     readable: decodeStream(statusCode, headers, incomingMessage, onError),
   };
-}
+};
 
 const h1Request = async (ctx, url, options) => {
   const { request } = url.protocol === 'https:' ? https : http;
@@ -96,21 +100,21 @@ const h1Request = async (ctx, url, options) => {
       opts.agent = new Proxy(agent, {
         get: (target, property) => {
           if (property === 'createConnection') {
-            return (options, cb) => {
-              debug(`agent reusing socket #${socket.id} ${socket.host}`)
+            return (_connectOptions, cb) => {
+              debug(`agent reusing socket #${socket.id} ${socket.host}`);
               cb(null, socket);
             };
           } else {
             return target[property];
           }
-        }
+        },
       });
     } else {
-      // no agent, provide createConntection in options 
-      opts.createConnection = (url, options) => {
-        debug(`reusing socket  #${socket.id} ${socket.host}`)
+      // no agent, provide createConntection in options
+      opts.createConnection = (/* (url, options */) => {
+        debug(`reusing socket  #${socket.id} ${socket.host}`);
         return socket;
-      }
+      };
     }
   }
 
@@ -130,6 +134,6 @@ const h1Request = async (ctx, url, options) => {
       req.end();
     }
   });
-}
+};
 
 module.exports = { request: h1Request, setupContext, resetContext };

@@ -16,44 +16,44 @@ const { EventEmitter } = require('events');
 
 /**
  * Creates a lock (mutex) for asynchronous resources.
- * 
- * Based on https://medium.com/trabe/synchronize-cache-updates-in-node-js-with-a-mutex-d5b395457138 
+ *
+ * Based on https://medium.com/trabe/synchronize-cache-updates-in-node-js-with-a-mutex-d5b395457138
  */
 const lock = () => {
-  let locked = {};
+  const locked = {};
   const ee = new EventEmitter();
   ee.setMaxListeners(0);
 
   return {
     /**
      * Acquire a mutual exclusive lock.
-     * 
+     *
      * @param {string} key resource key to lock
      * @returns {Promise<*>} Promise which resolves with an option value passed on #release
      */
-    acquire: key =>
-      new Promise(resolve => {
+    acquire: (key) => new Promise((resolve) => {
+      if (!locked[key]) {
+        locked[key] = true;
+        resolve();
+        return;
+      }
+
+      const tryAcquire = (value) => {
         if (!locked[key]) {
           locked[key] = true;
-          return resolve();
+          ee.removeListener(key, tryAcquire);
+          resolve(value);
         }
-        
-        const tryAcquire = value => {
-          if (!locked[key]) {
-            locked[key] = true;
-            ee.removeListener(key, tryAcquire);
-            return resolve(value);
-          }
-        };
-        
-        ee.on(key, tryAcquire);
-      }),
+      };
+
+      ee.on(key, tryAcquire);
+    }),
 
     /**
      * Release the mutual exclusive lock.
-     * 
+     *
      * @param {string} key resource key to release
-     * @param {*} [value] optional value to be propagated 
+     * @param {*} [value] optional value to be propagated
      *                    to all the code that's waiting for
      *                    the lock to release
      */

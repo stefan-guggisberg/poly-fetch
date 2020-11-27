@@ -25,7 +25,7 @@ const INTERNALS = Symbol('Response internals');
 class Response extends Body {
   /**
    * Constructs a new Response instance
-   * 
+   *
    * @constructor
    * @param {Readable|Buffer|String|URLSearchParams} [body=null] (see https://fetch.spec.whatwg.org/#bodyinit-unions)
    * @param {Object} [init={}]
@@ -76,11 +76,11 @@ class Response extends Body {
 
   /**
    * Create a redirect response.
-   * 
+   *
    * @param {string} url The URL that the new response is to originate from.
    * @param {number} [status=302] An optional status code for the response (default: 302)
    * @returns {Response} A Response object.
-   * 
+   *
    * See https://fetch.spec.whatwg.org/#dom-response-redirect
    */
   static redirect(url, status = 302) {
@@ -121,5 +121,5 @@ Object.defineProperties(Response.prototype, {
 });
 
 module.exports = {
-  Response
+  Response,
 };

@@ -15,8 +15,9 @@
 const { PassThrough, Readable } = require('stream');
 
 const getStream = require('get-stream');
-
 const FormData = require('form-data');
+
+const { FetchError, FetchBaseError } = require('./errors');
 
 const EMPTY_BUFFER = Buffer.alloc(0);
 const INTERNALS = Symbol('Body internals');
@@ -32,6 +33,39 @@ const INTERNALS = Symbol('Body internals');
 const toArrayBuffer = (buf) => buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
 
 /**
+ * Consume the body's stream and return a Buffer with the stream's content.
+ *
+ * Ref: https://fetch.spec.whatwg.org/#concept-body-consume-body
+ *
+ * @param {Body} body
+ * @return Promise<Buffer>
+ */
+const consume = async (body) => {
+  if (body[INTERNALS].disturbed) {
+    throw new TypeError('Already read');
+  }
+
+  if (body[INTERNALS].error) {
+    throw this[INTERNALS].error;
+  }
+
+  // eslint-disable-next-line no-param-reassign
+  body[INTERNALS].disturbed = true;
+
+  const { stream } = body[INTERNALS];
+
+  if (stream === null) {
+    return EMPTY_BUFFER;
+  }
+
+  if (!(stream instanceof Readable)) {
+    return EMPTY_BUFFER;
+  }
+
+  return getStream.buffer(stream);
+};
+
+/**
  * Body mixin
  *
  * @see https://fetch.spec.whatwg.org/#body
@@ -39,7 +73,7 @@ const toArrayBuffer = (buf) => buf.buffer.slice(buf.byteOffset, buf.byteOffset +
 class Body {
   /**
    * Constructs a new Body instance
-   * 
+   *
    * @constructor
    * @param {Readable|Buffer|String|URLSearchParams|FormData} [body=null] (see https://fetch.spec.whatwg.org/#bodyinit-unions)
    */
@@ -59,7 +93,7 @@ class Body {
     } else if (typeof body === 'string' || body instanceof String) {
       stream = Readable.from(body);
     } else {
-      // none of the above: coerce to string 
+      // none of the above: coerce to string
       stream = Readable.from(String(body));
     }
 
@@ -69,10 +103,10 @@ class Body {
       error: null,
     };
     if (body instanceof Readable) {
-      stream.on('error', err => {
-        const error = err instanceof FetchBaseError ?
-          err :
-          new FetchError(`Invalid response body while trying to fetch ${this.url}: ${err.message}`, 'system', err);
+      stream.on('error', (err) => {
+        const error = err instanceof FetchBaseError
+          ? err
+          : new FetchError(`Invalid response body while trying to fetch ${this.url}: ${err.message}`, 'system', err);
         this[INTERNALS].error = error;
       });
     }
@@ -81,7 +115,7 @@ class Body {
   /**
    * Return a Node.js Readable stream.
    * (deviation from spec)
-   * 
+   *
    * @return {Promise<Readable>}
    */
   get body() {
@@ -95,7 +129,7 @@ class Body {
   /**
    * Consume the body and return a promise that will resolve to a Node.js Buffer.
    * (extension)
-   * 
+   *
    * @return {Promise<Buffer>}
    */
   async buffer() {
@@ -122,7 +156,8 @@ class Body {
   }
 
   /**
-   * Consume the body and return a promise that will resolve to the result of JSON.parse(responseText).
+   * Consume the body and return a promise that will
+   * resolve to the result of JSON.parse(responseText).
    *
    * @return {Promise<*>}
    */
@@ -136,40 +171,8 @@ Object.defineProperties(Body.prototype, {
   bodyUsed: { enumerable: true },
   arrayBuffer: { enumerable: true },
   json: { enumerable: true },
-  text: { enumerable: true }
+  text: { enumerable: true },
 });
-
-/**
- * Consume the body's stream and return a Buffer with the stream's content.
- *
- * Ref: https://fetch.spec.whatwg.org/#concept-body-consume-body
- *
- * @param {Body} body
- * @return Promise<Buffer>
- */
-const consume = async (body) => {
-  if (body[INTERNALS].disturbed) {
-    throw new TypeError('Already read');
-  }
-
-  if (body[INTERNALS].error) {
-    throw this[INTERNALS].error;
-  }
-
-  body[INTERNALS].disturbed = true;
-
-  const { stream } = body[INTERNALS];
-
-  if (stream === null) {
-    return EMPTY_BUFFER;
-  }
-
-  if (!(stream instanceof Readable)) {
-    return EMPTY_BUFFER;
-  }
-  
-  return getStream.buffer(stream);
-};
 
 /**
  * Clone the body's stream.
@@ -191,6 +194,7 @@ const cloneStream = (body) => {
     stream.pipe(result);
     stream.pipe(clonedStream);
     // set body's stream to cloned stream and return result (i.e. the other clone)
+    // eslint-disable-next-line no-param-reassign
     body[INTERNALS].stream = clonedStream;
   }
   return result;
@@ -198,5 +202,5 @@ const cloneStream = (body) => {
 
 module.exports = {
   Body,
-  cloneStream
+  cloneStream,
 };

@@ -10,6 +10,8 @@
  * governing permissions and limitations under the License.
  */
 
+/* eslint-disable max-classes-per-file */
+
 'use strict';
 
 const { EventEmitter } = require('events');
@@ -18,19 +20,18 @@ const SIGNAL_INTERNALS = Symbol('AbortSignal internals');
 
 /**
  * The AbortSignal class.
- * 
+ *
  * @see https://dom.spec.whatwg.org/#interface-AbortSignal
  */
 class AbortSignal {
-
   constructor() {
     this[SIGNAL_INTERNALS] = {
       eventEmitter: new EventEmitter(),
       onabort: null,
       aborted: false,
-    }
+    };
   }
-  
+
   get aborted() {
     return this[SIGNAL_INTERNALS].aborted;
   }
@@ -46,7 +47,7 @@ class AbortSignal {
   get [Symbol.toStringTag]() {
     return this.constructor.name;
   }
-  
+
   removeEventListener(name, handler) {
     this[SIGNAL_INTERNALS].eventEmitter.removeListener(name, handler);
   }
@@ -58,7 +59,7 @@ class AbortSignal {
   dispatchEvent(type) {
     const event = { type, target: this };
     const handlerName = `on${type}`;
-    
+
     if (typeof this[SIGNAL_INTERNALS][handlerName] === 'function') {
       this[handlerName](event);
     }
@@ -84,11 +85,10 @@ const CONTROLLER_INTERNALS = Symbol('AbortController internals');
 
 /**
  * The AbortController class.
- * 
+ *
  * @see https://dom.spec.whatwg.org/#interface-abortcontroller
  */
 class AbortController {
-
   constructor() {
     this[CONTROLLER_INTERNALS] = {
       signal: new AbortSignal(),
@@ -107,7 +107,7 @@ class AbortController {
     if (this[CONTROLLER_INTERNALS].signal.aborted) {
       return;
     }
-    
+
     this[CONTROLLER_INTERNALS].signal.fire();
   }
 }

@@ -14,15 +14,50 @@
 
 const { Readable } = require('stream');
 
+const FormData = require('form-data');
+
 const { AbortSignal } = require('./abort');
 const { Body, cloneStream } = require('./body');
 const { Headers } = require('./headers');
 
 const { isPlainObject } = require('../common/utils');
 
-const FormData = require('form-data');
-
 const INTERNALS = Symbol('Request internals');
+
+/**
+ * Guesses the `Content-Type` based on the type of body.
+ *
+ * @param {Readable|Buffer|String|URLSearchParams|FormData} body Any options.body input
+ * @returns {string|null}
+ */
+const guessContentType = (body) => {
+  if (body === null) {
+    return null;
+  }
+
+  if (typeof body === 'string') {
+    return 'text/plain;charset=UTF-8';
+  }
+
+  if (body instanceof URLSearchParams) {
+    return 'application/x-www-form-urlencoded;charset=UTF-8';
+  }
+
+  if (body instanceof FormData) {
+    return `multipart/form-data;boundary=${body.getBoundary()}`;
+  }
+
+  if (Buffer.isBuffer(body)) {
+    return null;
+  }
+
+  if (body instanceof Readable) {
+    return null;
+  }
+
+  // fallback: body is coerced to string
+  return 'text/plain;charset=UTF-8';
+};
 
 /**
  * Request class
@@ -32,7 +67,7 @@ const INTERNALS = Symbol('Request internals');
 class Request extends Body {
   /**
    * Constructs a new Request instance
-   * 
+   *
    * @constructor
    * @param {Request|String} input
    * @param {Object} [init={}]
@@ -45,8 +80,8 @@ class Request extends Body {
     let method = init.method || (req && req.method) || 'GET';
     method = method.toUpperCase();
 
-		// eslint-disable-next-line no-eq-null, eqeqeq
-    if ((init.body != null // neither null nor undefined 
+    // eslint-disable-next-line no-eq-null, eqeqeq
+    if ((init.body != null // neither null nor undefined
       || (req && req.body !== null))
       && ['GET', 'HEAD'].includes(method)) {
       throw new TypeError('Request with GET/HEAD method cannot have body');
@@ -72,10 +107,10 @@ class Request extends Body {
     super(body);
 
     let signal = req ? req.signal : null;
-		if ('signal' in init) {
+    if ('signal' in init) {
       signal = init.signal;
     }
-1
+
     if (signal && !(signal instanceof AbortSignal)) {
       throw new TypeError('signal needs to be an instanceof AbortSignal');
     }
@@ -86,11 +121,19 @@ class Request extends Body {
       redirect: init.redirect || (req && req.redirect) || 'follow',
       headers,
       parsedURL,
-      signal
+      signal,
     };
 
     // extension options
-    this.follow = init.follow === undefined ? (!req || req.follow === undefined ? 20 : req.follow) : init.follow;
+    if (init.follow === undefined) {
+      if (!req || req.follow === undefined) {
+        this.follow = 20;
+      } else {
+        this.follow = req.follow;
+      }
+    } else {
+      this.follow = init.follow;
+    }
     this.counter = init.counter || (req && req.counter) || 0;
   }
 
@@ -134,44 +177,9 @@ Object.defineProperties(Request.prototype, {
   headers: { enumerable: true },
   redirect: { enumerable: true },
   clone: { enumerable: true },
-  signal: { enumerable: true }
+  signal: { enumerable: true },
 });
 
-/**
- * Guesses the `Content-Type` based on the type of body.
- * 
- * @param {Readable|Buffer|String|URLSearchParams|FormData} body Any options.body input
- * @returns {string|null}
- */
-const guessContentType = (body) => {
-  if (body === null) {
-    return null;
-  }
-
-  if (typeof body === 'string') {
-    return 'text/plain;charset=UTF-8';
-  }
-
-  if (body instanceof URLSearchParams) {
-    return 'application/x-www-form-urlencoded;charset=UTF-8';
-  }
-
-  if (body instanceof FormData) {
-    return `multipart/form-data;boundary=${body.getBoundary()}`;
-  }
-
-  if (Buffer.isBuffer(body)) {
-    return null;
-  }
-
-  if (body instanceof Readable) {
-    return null;
-  }
-
-  // fallback: body is coerced to string
-  return 'text/plain;charset=UTF-8';
-};
-
 module.exports = {
-  Request
+  Request,
 };

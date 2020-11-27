@@ -11,6 +11,8 @@
  */
 
 /* eslint-env mocha */
+/* eslint-disable no-unused-expressions */
+/* eslint-disable guard-for-in */
 
 'use strict';
 
@@ -23,12 +25,12 @@ const { expect } = chai;
 const { Headers } = require('../../src/fetch');
 
 describe('Headers Tests', () => {
-
   it('should have attributes conforming to Web IDL', () => {
     const headers = new Headers();
     expect(Object.getOwnPropertyNames(headers)).to.be.empty;
     const enumerableProperties = [];
 
+    // eslint-disable-next-line no-restricted-syntax
     for (const property in headers) {
       enumerableProperties.push(property);
     }
@@ -42,7 +44,7 @@ describe('Headers Tests', () => {
       'has',
       'keys',
       'set',
-      'values'
+      'values',
     ]) {
       expect(enumerableProperties).to.contain(toCheck);
     }
@@ -53,7 +55,7 @@ describe('Headers Tests', () => {
       ['b', '2'],
       ['c', '4'],
       ['b', '3'],
-      ['a', '1']
+      ['a', '1'],
     ]);
     expect(headers).to.have.property('forEach');
 
@@ -65,7 +67,7 @@ describe('Headers Tests', () => {
     expect(result).to.deep.equal([
       ['a', '1'],
       ['b', '2, 3'],
-      ['c', '4']
+      ['c', '4'],
     ]);
   });
 
@@ -73,7 +75,7 @@ describe('Headers Tests', () => {
     const headers = new Headers([
       ['b', '2'],
       ['c', '4'],
-      ['a', '1']
+      ['a', '1'],
     ]);
     headers.append('b', '3');
     expect(headers).to.be.iterable;
@@ -86,7 +88,7 @@ describe('Headers Tests', () => {
     expect(result).to.deep.equal([
       ['a', '1'],
       ['b', '2, 3'],
-      ['c', '4']
+      ['c', '4'],
     ]);
   });
 
@@ -94,7 +96,7 @@ describe('Headers Tests', () => {
     const headers = new Headers([
       ['b', '2'],
       ['c', '4'],
-      ['a', '1']
+      ['a', '1'],
     ]);
     headers.append('b', '3');
 
@@ -102,7 +104,7 @@ describe('Headers Tests', () => {
       .and.to.deep.iterate.over([
         ['a', '1'],
         ['b', '2, 3'],
-        ['c', '4']
+        ['c', '4'],
       ]);
   });
 
@@ -110,7 +112,7 @@ describe('Headers Tests', () => {
     const headers = new Headers([
       ['b', '2'],
       ['c', '4'],
-      ['a', '1']
+      ['a', '1'],
     ]);
     headers.append('b', '3');
 
@@ -122,7 +124,7 @@ describe('Headers Tests', () => {
     const headers = new Headers([
       ['b', '2'],
       ['c', '4'],
-      ['a', '1']
+      ['a', '1'],
     ]);
     headers.append('b', '3');
 
@@ -132,9 +134,9 @@ describe('Headers Tests', () => {
 
   it('should reject illegal header', () => {
     const headers = new Headers();
-    expect(() => new Headers({'He y': 'ok'})).to.throw(TypeError);
-    expect(() => new Headers({'Hé-y': 'ok'})).to.throw(TypeError);
-    expect(() => new Headers({'He-y': 'ăk'})).to.throw(TypeError);
+    expect(() => new Headers({ 'He y': 'ok' })).to.throw(TypeError);
+    expect(() => new Headers({ 'Hé-y': 'ok' })).to.throw(TypeError);
+    expect(() => new Headers({ 'He-y': 'ăk' })).to.throw(TypeError);
     expect(() => headers.append('Hé-y', 'ok')).to.throw(TypeError);
     expect(() => headers.delete('Hé-y')).to.throw(TypeError);
     expect(() => headers.get('Hé-y')).to.throw(TypeError);

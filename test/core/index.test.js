@@ -22,7 +22,7 @@ const { promisify } = require('util');
 const isStream = require('is-stream');
 const { WritableStreamBuffer } = require('stream-buffers');
 
-const { context, ALPN_HTTP1_1 } = require('../src/core');
+const { context, ALPN_HTTP1_1 } = require('../../src/core');
 
 const streamFinished = promisify(finished);
 
@@ -35,7 +35,7 @@ const readStream = async (stream) => {
   return streamFinished(out).then(() => out.getContents());
 };
 
-describe('Polyglot HTTP Client Tests', () => {
+describe('Core Tests', () => {
   let defaultCtx;
 
   before(async () => {

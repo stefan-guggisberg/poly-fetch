@@ -12,18 +12,17 @@
 
 'use strict';
 
-const { 
+const {
   request,
   setupContext,
-  resetContext, 
+  resetContext,
   ALPN_HTTP2,
   ALPN_HTTP2C,
   ALPN_HTTP1_1,
-  ALPN_HTTP1_0
+  ALPN_HTTP1_0,
 } = require('./request');
 
 class RequestContext {
-
   constructor(options) {
     // setup context
     this.options = { ...(options || {}) };
@@ -58,7 +57,7 @@ class RequestContext {
       ALPN_HTTP2,
       ALPN_HTTP2C,
       ALPN_HTTP1_1,
-      ALPN_HTTP1_0
+      ALPN_HTTP1_0,
     };
   }
 

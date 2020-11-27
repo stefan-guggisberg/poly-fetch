@@ -12,4 +12,4 @@
 
 'use strict';
 
-require('./fetch');
+module.exports = require('./fetch');

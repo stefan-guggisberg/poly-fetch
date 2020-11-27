@@ -14,6 +14,8 @@
 
 const { Readable } = require('stream');
 
+const FormData = require('form-data');
+
 const { Body } = require('./body');
 const { Headers } = require('./headers');
 const { Request } = require('./request');
@@ -24,16 +26,14 @@ const { AbortController, AbortSignal } = require('./abort');
 // core abstraction layer
 const { context } = require('../core');
 
-const FormData = require('form-data');
-
 const fetch = async (ctx, url, options = {}) => {
   const { request } = ctx.context;
 
   const req = new Request(url, options);
 
   // TODO: implement abort logic
-  const { signal } = req;
-  
+  // const { signal } = req;
+
   let resp;
   try {
     // call underlying protocol agnostic abstraction
@@ -56,14 +56,14 @@ const fetch = async (ctx, url, options = {}) => {
     statusText,
     httpVersion,
     headers,
-    readable
+    readable,
   } = resp;
 
   // redirect?
   // https://fetch.spec.whatwg.org/#concept-http-fetch step 6
   if ([301, 302, 303, 307, 308].includes(statusCode)) {
     // https://fetch.spec.whatwg.org/#concept-http-fetch step 6.2
-    const location = headers['location'];
+    const { location } = headers;
     // https://fetch.spec.whatwg.org/#concept-http-fetch step 6.3
     const locationURL = location === null ? null : new URL(location, req.url);
     // https://fetch.spec.whatwg.org/#concept-http-fetch step 6.5
@@ -74,7 +74,7 @@ const fetch = async (ctx, url, options = {}) => {
       case 'manual':
         // extension: set location header to the resolved url
         if (locationURL !== null) {
-          headers['location'] = locationURL;
+          headers.location = locationURL.toString();
         }
         break;
       case 'follow': {
@@ -114,7 +114,11 @@ const fetch = async (ctx, url, options = {}) => {
         }
 
         // https://fetch.spec.whatwg.org/#http-redirect-fetch step 15
-        return fetch(ctx, new Request(locationURL, requestOptions), options.compress === undefined ? {} : { compress: options.compress });
+        return fetch(
+          ctx,
+          new Request(locationURL, requestOptions),
+          options.compress === undefined ? {} : { compress: options.compress },
+        );
       }
 
       default:
@@ -132,10 +136,9 @@ const fetch = async (ctx, url, options = {}) => {
       counter: req.counter,
     },
   );
-}
+};
 
 class FetchContext {
-
   constructor(options) {
     // setup context
     this.options = { ...(options || {}) };
@@ -143,15 +146,20 @@ class FetchContext {
       // HTTP/2 push handler: need to wrap the response
       const handler = this.options.h2.pushHandler;
       this.options.h2.pushHandler = (url, response) => {
-        const { 
+        const {
           statusCode,
           statusText,
           httpVersion,
           headers,
-          readable
+          readable,
         } = response;
-        handler(url, new Response(readable, { status: statusCode, statusText, headers, httpVersion }));
-      }
+        handler(
+          url,
+          new Response(readable, {
+            status: statusCode, statusText, headers, httpVersion,
+          }),
+        );
+      };
     }
     this.context = context(this.options);
   }

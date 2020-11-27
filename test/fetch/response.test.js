@@ -11,6 +11,7 @@
  */
 
 /* eslint-env mocha */
+/* eslint-disable guard-for-in */
 
 'use strict';
 
@@ -23,10 +24,10 @@ const { expect } = chai;
 const { Response } = require('../../src/fetch');
 
 describe('Response Tests', () => {
-
   it('should have attributes conforming to Web IDL', () => {
     const res = new Response();
     const enumerableProperties = [];
+    // eslint-disable-next-line no-restricted-syntax
     for (const property in res) {
       enumerableProperties.push(property);
     }
@@ -43,7 +44,7 @@ describe('Response Tests', () => {
       'redirected',
       'statusText',
       'headers',
-      'clone'
+      'clone',
     ]) {
       expect(enumerableProperties).to.contain(toCheck);
     }
@@ -56,7 +57,7 @@ describe('Response Tests', () => {
       'ok',
       'redirected',
       'statusText',
-      'headers'
+      'headers',
     ]) {
       expect(() => {
         res[toCheck] = 'abc';
@@ -66,7 +67,7 @@ describe('Response Tests', () => {
 
   it('should support empty options', () => {
     const res = new Response(Readable.from('a=1'));
-    return res.text().then(result => {
+    return res.text().then((result) => {
       expect(result).to.equal('a=1');
     });
   });
@@ -74,29 +75,29 @@ describe('Response Tests', () => {
   it('should support parsing headers', () => {
     const res = new Response(null, {
       headers: {
-        a: '1'
-      }
+        a: '1',
+      },
     });
     expect(res.headers.get('a')).to.equal('1');
   });
 
   it('should support text() method', () => {
     const res = new Response('a=1');
-    return res.text().then(result => {
+    return res.text().then((result) => {
       expect(result).to.equal('a=1');
     });
   });
 
   it('should support json() method', () => {
     const res = new Response('{"a":1}');
-    return res.json().then(result => {
+    return res.json().then((result) => {
       expect(result.a).to.equal(1);
     });
   });
 
   it('should support buffer() method', () => {
     const res = new Response('a=1');
-    return res.buffer().then(result => {
+    return res.buffer().then((result) => {
       expect(result.toString()).to.equal('a=1');
     });
   });
@@ -105,21 +106,22 @@ describe('Response Tests', () => {
     const body = Readable.from('a=1');
     const res = new Response(body, {
       headers: {
-        a: '1'
+        a: '1',
       },
       url: 'http://example.com/',
       status: 346,
-      statusText: 'production'
+      statusText: 'production',
     });
     const cl = res.clone();
     expect(cl.headers.get('a')).to.equal('1');
     expect(cl.url).to.equal('http://example.com/');
     expect(cl.status).to.equal(346);
     expect(cl.statusText).to.equal('production');
+    // eslint-disable-next-line no-unused-expressions
     expect(cl.ok).to.be.false;
     // Clone body shouldn't be the same body
     expect(cl.body).to.not.equal(body);
-    return cl.text().then(result => {
+    return cl.text().then((result) => {
       expect(result).to.equal('a=1');
     });
   });
@@ -127,21 +129,21 @@ describe('Response Tests', () => {
   it('should support stream as body', () => {
     const body = Readable.from('a=1');
     const res = new Response(body);
-    return res.text().then(result => {
+    return res.text().then((result) => {
       expect(result).to.equal('a=1');
     });
   });
 
   it('should support string as body', () => {
     const res = new Response('a=1');
-    return res.text().then(result => {
+    return res.text().then((result) => {
       expect(result).to.equal('a=1');
     });
   });
 
   it('should support buffer as body', () => {
     const res = new Response(Buffer.from('a=1'));
-    return res.text().then(result => {
+    return res.text().then((result) => {
       expect(result).to.equal('a=1');
     });
   });
@@ -150,7 +152,7 @@ describe('Response Tests', () => {
     const res = new Response();
     expect(res.body).to.equal(null);
 
-    return res.text().then(result => expect(result).to.equal(''));
+    return res.text().then((result) => expect(result).to.equal(''));
   });
 
   it('should default to 200 as status code', () => {

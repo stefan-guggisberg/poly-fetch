@@ -30,19 +30,35 @@ const ALPN_HTTP1_1 = 'http/1.1';
 // context option defaults
 const ALPN_CACHE_SIZE = 100; // # of entries
 const ALPN_CACHE_TTL = 60 * 60 * 1000; // (ms): 1h
-const ALPN_PROTOCOLS = [ ALPN_HTTP2, ALPN_HTTP1_1, ALPN_HTTP1_0 ];
+const ALPN_PROTOCOLS = [ALPN_HTTP2, ALPN_HTTP1_1, ALPN_HTTP1_0];
 
 const DEFAULT_USER_AGENT = 'polyglot-fetch';
 
 // request option defaults
 const DEFAULT_OPTIONS = {
   method: 'GET',
-  compress: true
+  compress: true,
 };
 
 let socketIdCounter = 0;
 
 const connectionLock = lock();
+
+const connectTLS = (url, options) => new Promise((resolve, reject) => {
+  // TODO: connect timeout option: https://github.com/grantila/fetch-h2/issues/99
+  const socket = tls.connect(+url.port || 443, url.hostname, options);
+  socket.once('secureConnect', () => {
+    socketIdCounter += 1;
+    socket.id = socketIdCounter;
+    // workaround for node >= 12.17.0 regression
+    // (see https://github.com/nodejs/node/pull/34859)
+    socket.secureConnecting = false;
+    debug(`established TLS connection: #${socket.id} ${url.hostname}`);
+    resolve(socket);
+  });
+
+  socket.once('error', reject);
+});
 
 const connect = async (url, options) => {
   // use mutex to avoid concurrent socket creation to same origin
@@ -55,24 +71,7 @@ const connect = async (url, options) => {
   } finally {
     connectionLock.release(url.origin, socket);
   }
-}
-
-const connectTLS = (url, options) => {
-  return new Promise((resolve, reject) => {
-    // TODO: connect timeout option: https://github.com/grantila/fetch-h2/issues/99
-    const socket = tls.connect(+url.port || 443, url.hostname, options);
-    socket.once('secureConnect', () => {
-      socket.id = ++socketIdCounter;
-      // workaround for node >= 12.17.0 regression
-      // (see https://github.com/nodejs/node/pull/34859)
-      socket.secureConnecting = false;
-      debug(`established TLS connection: #${socket.id} ${url.hostname}`);
-      resolve(socket);
-    });
-
-    socket.once('error', reject);
-  });
-}
+};
 
 const determineProtocol = async (ctx, url) => {
   // lookup ALPN cache
@@ -82,7 +81,7 @@ const determineProtocol = async (ctx, url) => {
   }
   switch (url.protocol) {
     case 'http:':
-      // for simplicity we assume unencrypted HTTP to be HTTP/1.1 
+      // for simplicity we assume unencrypted HTTP to be HTTP/1.1
       // (although, theoretically, it could also be plain-text HTTP/2 (h2c))
       protocol = ALPN_HTTP1_1;
       ctx.alpnCache.set(url.origin, protocol);
@@ -103,9 +102,9 @@ const determineProtocol = async (ctx, url) => {
   }
 
   // negotioate via ALPN
-  const connectOptions = { 
+  const connectOptions = {
     servername: url.hostname, // enable SNI (Server Name Indication) extension
-    ALPNProtocols: ctx.alpnProtocols
+    ALPNProtocols: ctx.alpnProtocols,
   };
   const socket = await connect(url, connectOptions);
   // socket.alpnProtocol contains the negotiated protocol (e.g. 'h2', 'http1.1', 'http1.0')
@@ -129,7 +128,7 @@ const sanitizeHeaders = (headers) => {
 const request = async (ctx, uri, options) => {
   const url = typeof uri === 'string' ? new URL(uri) : uri;
 
-  const opts = { ...DEFAULT_OPTIONS, ...(options || {})};
+  const opts = { ...DEFAULT_OPTIONS, ...(options || {}) };
 
   // sanitze method name
   if (typeof opts.method === 'string') {
@@ -164,8 +163,8 @@ const request = async (ctx, uri, options) => {
   }
 
   if (opts.compress && !opts.headers['accept-encoding']) {
-		opts.headers['accept-encoding'] = 'gzip,deflate,br';
-	}
+    opts.headers['accept-encoding'] = 'gzip,deflate,br';
+  }
 
   // delegate to protocol-specific request handler
   const { protocol, socket = null } = await determineProtocol(ctx, url);
@@ -174,34 +173,34 @@ const request = async (ctx, uri, options) => {
     case ALPN_HTTP2:
       return h2.request(ctx, url, socket ? { ...opts, socket } : opts);
     case ALPN_HTTP2C:
-        // plain-text HTTP/2 (h2c)
-        url.protocol = 'http:';
-        return h2.request(ctx, url, socket ? { ...opts, socket } : opts);
+      // plain-text HTTP/2 (h2c)
+      url.protocol = 'http:';
+      return h2.request(ctx, url, socket ? { ...opts, socket } : opts);
     case ALPN_HTTP1_0:
     case ALPN_HTTP1_1:
       return h1.request(ctx, url, socket ? { ...opts, socket } : opts);
     default:
       throw new TypeError(`unsupported protocol: ${protocol}`);
   }
-}
+};
 
 const resetContext = async (ctx) => {
   ctx.alpnCache.reset();
   return Promise.all([
     h1.resetContext(ctx),
-    h2.resetContext(ctx)
+    h2.resetContext(ctx),
   ]);
-}
+};
 
 const setupContext = (ctx) => {
-  const { 
-    options: { 
+  const {
+    options: {
       alpnProtocols = ALPN_PROTOCOLS,
       alpnCacheTTL = ALPN_CACHE_TTL,
       alpnCacheSize = ALPN_CACHE_SIZE,
       userAgent = DEFAULT_USER_AGENT,
-      overwriteUserAgent = false
-    }
+      overwriteUserAgent = false,
+    },
   } = ctx;
 
   ctx.alpnProtocols = alpnProtocols;
@@ -212,7 +211,7 @@ const setupContext = (ctx) => {
 
   h1.setupContext(ctx);
   h2.setupContext(ctx);
-}
+};
 
 module.exports = {
   request,
@@ -221,5 +220,5 @@ module.exports = {
   ALPN_HTTP2,
   ALPN_HTTP2C,
   ALPN_HTTP1_1,
-  ALPN_HTTP1_0
+  ALPN_HTTP1_0,
 };

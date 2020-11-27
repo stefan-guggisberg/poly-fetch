@@ -17,43 +17,41 @@ const { validateHeaderName, validateHeaderValue } = require('http');
 const INTERNALS = Symbol('Headers internals');
 
 const normalizeName = (name) => {
-  if (typeof name !== 'string') {
-    name = String(name);
-  }
+  const nm = typeof name !== 'string' ? String(name) : name;
 
   if (typeof validateHeaderName === 'function') {
     // since node 14.3.0
-    validateHeaderName(name);
+    validateHeaderName(nm);
   } else {
-    if (!/^[\^`\-\w!#$%&'*+.|~]+$/.test(name)) {
-      const err = new TypeError(`Header name must be a valid HTTP token [${name}]`);
-      Object.defineProperty(err, 'code', {value: 'ERR_INVALID_HTTP_TOKEN'});
+    // eslint-disable-next-line no-lonely-if
+    if (!/^[\^`\-\w!#$%&'*+.|~]+$/.test(nm)) {
+      const err = new TypeError(`Header name must be a valid HTTP token [${nm}]`);
+      Object.defineProperty(err, 'code', { value: 'ERR_INVALID_HTTP_TOKEN' });
       throw err;
     }
   }
 
-  return name.toLowerCase();
-}
-  
+  return nm.toLowerCase();
+};
+
 const normalizeValue = (value) => {
-  if (typeof value !== 'string') {
-    value = String(value);
-  }
+  const val = typeof value !== 'string' ? String(value) : value;
 
   if (typeof validateHeaderValue === 'function') {
     // since node 14.3.0
-    validateHeaderValue('dummy', value);
+    validateHeaderValue('dummy', val);
   } else {
-    if (/[^\t\u0020-\u007E\u0080-\u00FF]/.test(value)) {
-      const err = new TypeError(`Invalid character in header content ["${value}"]`);
-      Object.defineProperty(err, 'code', {value: 'ERR_INVALID_CHAR'});
+    // eslint-disable-next-line no-lonely-if
+    if (/[^\t\u0020-\u007E\u0080-\u00FF]/.test(val)) {
+      const err = new TypeError(`Invalid character in header content ["${val}"]`);
+      Object.defineProperty(err, 'code', { value: 'ERR_INVALID_CHAR' });
       throw err;
     }
   }
 
   return value;
-}
-  
+};
+
 /**
  * Headers class
  *
@@ -62,7 +60,7 @@ const normalizeValue = (value) => {
 class Headers {
   /**
    * Constructs a new Headers instance
-   * 
+   *
    * @constructor
    * @param {Object} [init={}]
    */
@@ -72,9 +70,13 @@ class Headers {
     };
 
     if (init instanceof Headers) {
-      init.forEach((value, name) => { this.append(name, value); });
+      init.forEach((value, name) => {
+        this.append(name, value);
+      });
     } else if (Array.isArray(init)) {
-      init.forEach(([name, value]) => { this.append(name, value); });
+      init.forEach(([name, value]) => {
+        this.append(name, value);
+      });
     } else if (typeof init === 'object') {
       for (const [name, value] of Object.entries(init)) {
         this.append(name, value);
@@ -87,7 +89,7 @@ class Headers {
   }
 
   has(name) {
-    return this[INTERNALS].map.hasOwnProperty(normalizeName(name));
+    return Object.prototype.hasOwnProperty.call(this[INTERNALS].map, normalizeName(name));
   }
 
   get(name) {
@@ -98,8 +100,8 @@ class Headers {
   append(name, value) {
     const nm = normalizeName(name);
     const val = normalizeValue(value);
-    var oldVal = this[INTERNALS].map[nm];
-    this[INTERNALS].map[nm] = oldVal ? oldVal + ', ' + val : val;
+    const oldVal = this[INTERNALS].map[nm];
+    this[INTERNALS].map[nm] = oldVal ? `${oldVal}, ${val}` : val;
   }
 
   delete(name) {
@@ -111,20 +113,20 @@ class Headers {
       callback.call(thisArg, this.get(name), name);
     }
   }
-  
+
   * keys() {
-    //return Object.keys(this[INTERNALS].map).sort();
+    // return Object.keys(this[INTERNALS].map).sort();
     for (const name of Object.keys(this[INTERNALS].map).sort()) {
       yield name;
     }
   }
-  
+
   * values() {
     for (const name of this.keys()) {
       yield this.get(name);
     }
   }
-  
+
   /**
    * @type {() => IterableIterator<[string, string]>}
    */
@@ -148,7 +150,7 @@ class Headers {
   /**
    * Returns the headers as a plain object.
    * (extension)
-   * 
+   *
    * @return {object}
    */
   plain() {
@@ -170,13 +172,14 @@ Object.defineProperties(
     'has',
     'keys',
     'set',
-    'values'
+    'values',
   ].reduce((result, property) => {
-    result[property] = {enumerable: true};
+    // eslint-disable-next-line no-param-reassign
+    result[property] = { enumerable: true };
     return result;
-  }, {})
+  }, {}),
 );
 
 module.exports = {
-  Headers
+  Headers,
 };

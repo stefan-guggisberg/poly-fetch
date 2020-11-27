@@ -23,13 +23,18 @@ const { promisify } = require('util');
 const isStream = require('is-stream');
 const { WritableStreamBuffer } = require('stream-buffers');
 
-const { fetch, context, reset, ALPN_HTTP1_1, FormData, FetchError, AbortError } = require('../../src/fetch');
-
-const WOKEUP = 'woke up!';
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms, WOKEUP));
+const {
+  fetch,
+  context,
+  reset,
+  ALPN_HTTP1_1,
+  FormData,
+  FetchError,
+  AbortController,
+  AbortError,
+} = require('../../src/fetch');
 
 describe('Fetch Tests', () => {
-
   afterEach(async () => {
     await reset();
   });
@@ -124,8 +129,8 @@ describe('Fetch Tests', () => {
     const pushedResource = new Promise((resolve) => {
       const pushHandler = (url, response) => {
         resolve({ url, response });
-      }
-      customCtx = context({ h2: { pushHandler }});
+      };
+      customCtx = context({ h2: { pushHandler } });
     });
 
     try {
@@ -136,7 +141,7 @@ describe('Fetch Tests', () => {
       assert.strictEqual(resp.headers.get('content-type'), 'text/html');
       let buf = await resp.buffer();
       assert.strictEqual(+resp.headers.get('content-length'), buf.length);
-      // pushed resource 
+      // pushed resource
       const { url, response } = await pushedResource;
       assert.strictEqual(url, 'https://nghttp2.org/stylesheets/screen.css');
       assert.strictEqual(response.status, 200);
@@ -221,7 +226,7 @@ describe('Fetch Tests', () => {
 
     // custom context forces http1
     const ctx = context({
-      alpnProtocols: [ ALPN_HTTP1_1 ],
+      alpnProtocols: [ALPN_HTTP1_1],
     });
     resp = await ctx.fetch(url);
     assert.strictEqual(resp.status, 200);
@@ -297,11 +302,11 @@ describe('Fetch Tests', () => {
     assert.strictEqual(resp.redirected, true);
   });
 
-  it('should follow redirect code 303 with GET', async () => {
+  it('follows redirect code 303 with GET', async () => {
     const url = 'https://httpbingo.org/redirect-to?url=http%3A%2F%2Fhttpbin.org%2Fanything&status_code=303';
     const method = 'POST';
     const body = 'foo bar';
-    const resp = await fetch(url);
+    const resp = await fetch(url, { method, body });
     assert.strictEqual(resp.status, 200);
     assert.strictEqual(resp.redirected, true);
     assert.strictEqual(resp.headers.get('content-type'), 'application/json');
@@ -374,8 +379,20 @@ describe('Fetch Tests', () => {
     assert.deepStrictEqual(jsonResponseBody.form, params);
   });
 
-  it('handles concurrent http2 requests to subdomains sharing the same IP address (using wildcard SAN cert)', async function test() {
-    this.timeout(10000);
+  it('concurrent http2 requests to same origin', async () => {
+    const N = 500; // # of parallel requests
+    const TEST_URL = 'https://httpbin.org/bytes/'; // HTTP2
+    // generete array of 'randomized' urls
+    const urls = Array.from({ length: N }, () => Math.floor(Math.random() * N)).map((num) => `${TEST_URL}${num}`);
+    // send requests
+    const responses = await Promise.all(urls.map((url) => fetch(url)));
+    // read bodies
+    await Promise.all(responses.map((resp) => resp.text()));
+    const ok = responses.filter((res) => res.ok && res.httpVersion === '2.0');
+    assert.strictEqual(ok.length, N);
+  });
+
+  it('handles concurrent http2 requests to subdomains sharing the same IP address (using wildcard SAN cert)', async () => {
     // https://github.com/adobe/helix-fetch/issues/52
     const doFetch = async (url) => {
       const res = await fetch(url);

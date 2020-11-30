@@ -24,6 +24,7 @@ const { Readable } = require('stream');
 
 const debug = require('debug')('polyglot-fetch:h2');
 
+const { RequestAbortedError } = require('./errors');
 const { decodeStream } = require('../common/utils');
 
 const { NGHTTP2_CANCEL } = constants;
@@ -207,10 +208,42 @@ const request = async (ctx, url, options) => {
     }
 
     debug(`${method} ${url.host}${path}`);
-    const req = session.request({ ':method': method, ':path': path, ...headers });
+    let req;
+
+    // intercept abort signal in order to cancel request
+    const { signal } = opts;
+    const onAbortSignal = () => {
+      signal.removeEventListener('abort', onAbortSignal);
+      reject(new RequestAbortedError());
+      if (req) {
+        req.close(NGHTTP2_CANCEL);
+      }
+    };
+    if (signal) {
+      signal.addEventListener('abort', onAbortSignal);
+    }
+
+    req = session.request({ ':method': method, ':path': path, ...headers });
     req.once('response', (hdrs) => {
+      if (signal) {
+        signal.removeEventListener('abort', onAbortSignal);
+      }
       resolve(createResponse(hdrs, req, reject));
     });
+    // /*
+    req.once('error', (err) => {
+      // error occured during the request
+      if (signal) {
+        signal.removeEventListener('abort', onAbortSignal);
+      }
+      // if (!req.aborted) {
+      if (req.rstCode !== NGHTTP2_CANCEL) {
+        debug(`${opts.method} ${url.href} failed with: ${err.message}`);
+        req.close(NGHTTP2_CANCEL); // neccessary?
+        reject(err);
+      }
+    });
+    // */
     req.on('push', (hdrs, flags) => {
       debug(`received 'push' event: headers: ${JSON.stringify(hdrs)}, flags: ${flags}`);
     });

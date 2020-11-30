@@ -24,31 +24,68 @@ const { FetchBaseError, FetchError, AbortError } = require('./errors');
 const { AbortController, AbortSignal } = require('./abort');
 
 // core abstraction layer
-const { context } = require('../core');
+const { context, RequestAbortedError } = require('../core');
 
 const fetch = async (ctx, url, options = {}) => {
   const { request } = ctx.context;
 
   const req = new Request(url, options);
 
-  // TODO: implement abort logic
-  // const { signal } = req;
+  // extract optional signal
+  const { signal } = req;
 
-  let resp;
+  let coreResp;
+
+  if (signal && signal.aborted) {
+    const err = new AbortError('The operation was aborted.');
+    // cleanup request
+    if (req.body && req.body instanceof Readable) {
+      req.body.destroy(err);
+    }
+    throw err;
+  }
+
   try {
-    // call underlying protocol agnostic abstraction
-    resp = await request(req.url, {
+    // call underlying protocol agnostic abstraction;
+    // signal is passed to lower layer which throws a TBD error
+    // if the signal fires
+    coreResp = await request(req.url, {
       ...options,
       method: req.method,
       headers: req.headers.plain(),
       body: req.body,
     });
   } catch (err) {
+    // cleanup request
+    if (req.body && req.body instanceof Readable) {
+      req.body.destroy(err);
+    }
+
     if (err instanceof TypeError) {
       throw err;
     }
+    if (err instanceof RequestAbortedError) {
+      throw new AbortError('The operation was aborted.');
+    }
     // wrap system error in a FetchError instance
     throw new FetchError(err.message, 'system', err);
+  }
+
+  const abortHandler = () => {
+    // deregister from signal
+    signal.removeEventListener('abort', abortHandler);
+
+    const err = new AbortError('The operation was aborted.');
+    // cleanup request
+    if (req.body && req.body instanceof Readable) {
+      req.body.destroy(err);
+    }
+    // propagate error on response stream
+    coreResp.readable.emit('error', err);
+  };
+
+  if (signal) {
+    signal.addEventListener('abort', abortHandler);
   }
 
   const {
@@ -57,7 +94,7 @@ const fetch = async (ctx, url, options = {}) => {
     httpVersion,
     headers,
     readable,
-  } = resp;
+  } = coreResp;
 
   // redirect?
   // https://fetch.spec.whatwg.org/#concept-http-fetch step 6
@@ -69,7 +106,10 @@ const fetch = async (ctx, url, options = {}) => {
     // https://fetch.spec.whatwg.org/#concept-http-fetch step 6.5
     switch (req.redirect) {
       case 'error':
-        // TODO: cleanup?
+        if (signal) {
+          // deregister from signal
+          signal.removeEventListener('abort', abortHandler);
+        }
         throw new FetchError(`uri requested responds with a redirect, redirect mode is set to 'error': ${req.url}`, 'no-redirect');
       case 'manual':
         // extension: set location header to the resolved url
@@ -85,7 +125,10 @@ const fetch = async (ctx, url, options = {}) => {
 
         // https://fetch.spec.whatwg.org/#http-redirect-fetch step 5
         if (req.counter >= req.follow) {
-          // TODO: cleanup?
+          if (signal) {
+            // deregister from signal
+            signal.removeEventListener('abort', abortHandler);
+          }
           throw new FetchError(`maximum redirect reached at: ${req.url}`, 'max-redirect');
         }
 
@@ -102,7 +145,10 @@ const fetch = async (ctx, url, options = {}) => {
 
         // https://fetch.spec.whatwg.org/#http-redirect-fetch step 9
         if (statusCode !== 303 && req.body && options.body instanceof Readable) {
-          // TODO: cleanup?
+          if (signal) {
+            // deregister from signal
+            signal.removeEventListener('abort', abortHandler);
+          }
           throw new FetchError('Cannot follow redirect with body being a readable stream', 'unsupported-redirect');
         }
 
@@ -114,6 +160,10 @@ const fetch = async (ctx, url, options = {}) => {
         }
 
         // https://fetch.spec.whatwg.org/#http-redirect-fetch step 15
+        if (signal) {
+          // deregister from signal
+          signal.removeEventListener('abort', abortHandler);
+        }
         return fetch(
           ctx,
           new Request(locationURL, requestOptions),
@@ -126,9 +176,20 @@ const fetch = async (ctx, url, options = {}) => {
     }
   }
 
+  if (signal) {
+    // deregister from signal once the response stream has ended or if there was an error
+    readable.once('end', () => {
+      signal.removeEventListener('abort', abortHandler);
+    });
+    readable.once('error', () => {
+      signal.removeEventListener('abort', abortHandler);
+    });
+  }
+
   return new Response(
     readable,
     {
+      url: req.url,
       status: statusCode,
       statusText,
       headers,

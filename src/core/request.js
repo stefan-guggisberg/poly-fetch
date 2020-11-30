@@ -17,6 +17,7 @@ const tls = require('tls');
 const LRU = require('lru-cache');
 const debug = require('debug')('polyglot-fetch');
 
+const { RequestAbortedError } = require('./errors');
 const h1 = require('./h1');
 const h2 = require('./h2');
 const lock = require('./lock');
@@ -217,6 +218,7 @@ module.exports = {
   request,
   setupContext,
   resetContext,
+  RequestAbortedError,
   ALPN_HTTP2,
   ALPN_HTTP2C,
   ALPN_HTTP1_1,

@@ -153,7 +153,7 @@ describe('Fetch Tests', () => {
     }
   });
 
-  it.skip('AbortController works (slow response)', async function test() {
+  it('AbortController works (slow response)', async function test() {
     this.timeout(5000);
 
     const controller = new AbortController();
@@ -172,12 +172,12 @@ describe('Fetch Tests', () => {
     assert((ts1 - ts0) < 1000 * 1.1);
   });
 
-  it.skip('AbortController works (dripping response)', async function test() {
+  it('AbortController works (dripping response)', async function test() {
     this.timeout(10000);
 
     const DRIPPING_DURATION = 5; // seconds
     const FETCH_TIMEOUT = 3000; // ms
-    const TEST_URL = `https://httpbin.org/drip?duration=${DRIPPING_DURATION}&numbytes=10&code=200&delay=0`;
+    const TEST_URL = `https://httpbin.org/drip?duration=${DRIPPING_DURATION}&numbytes=10&code=200&delay=0`; // HTTP 2.0
 
     const controller = new AbortController();
     setTimeout(() => controller.abort(), FETCH_TIMEOUT);
@@ -185,7 +185,25 @@ describe('Fetch Tests', () => {
 
     const ts0 = Date.now();
     try {
-      await fetch(TEST_URL, { signal });
+      const res = await fetch(TEST_URL, { signal });
+      await res.buffer();
+      assert.fail();
+    } catch (err) {
+      assert(err instanceof AbortError);
+    }
+    const ts1 = Date.now();
+    assert((ts1 - ts0) < FETCH_TIMEOUT * 1.1);
+  });
+
+  it.skip('AbortController works (slow connect)', async () => {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 1000);
+    const { signal } = controller;
+
+    const ts0 = Date.now();
+    try {
+      // the TLS connect to the server hangs, fetch is aborted after 1 second.
+      await fetch('https://example.com:81/', { signal });
       assert.fail();
     } catch (err) {
       assert(err instanceof AbortError);

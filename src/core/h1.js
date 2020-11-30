@@ -18,6 +18,7 @@ const { Readable } = require('stream');
 
 const debug = require('debug')('polyglot-fetch:h1');
 
+const { RequestAbortedError } = require('./errors');
 const { decodeStream } = require('../common/utils');
 
 const getAgent = (ctx, protocol) => {
@@ -120,10 +121,40 @@ const h1Request = async (ctx, url, options) => {
 
   return new Promise((resolve, reject) => {
     debug(`${opts.method} ${url.href}`);
-    const req = request(url, opts, (res) => {
+    let req;
+
+    // intercept abort signal in order to cancel request
+    const { signal } = opts;
+    const onAbortSignal = () => {
+      signal.removeEventListener('abort', onAbortSignal);
+      reject(new RequestAbortedError());
+      if (req) {
+        req.abort();
+      }
+    };
+    if (signal) {
+      signal.addEventListener('abort', onAbortSignal);
+    }
+
+    req = request(url, opts);
+    req.once('response', (res) => {
+      if (signal) {
+        signal.removeEventListener('abort', onAbortSignal);
+      }
       resolve(createResponse(res, reject));
     });
-    req.on('error', reject);
+    req.once('error', (err) => {
+      // error occured during the request
+      if (signal) {
+        signal.removeEventListener('abort', onAbortSignal);
+      }
+      if (!req.aborted) {
+        debug(`${opts.method} ${url.href} failed with: ${err.message}`);
+        // TODO: better call req.destroy(err) instead of req.abort() ?
+        req.abort();
+        reject(err);
+      }
+    });
     // send request body?
     if (body instanceof Readable) {
       body.pipe(req);

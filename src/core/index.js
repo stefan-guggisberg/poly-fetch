@@ -16,6 +16,7 @@ const {
   request,
   setupContext,
   resetContext,
+  RequestAbortedError,
   ALPN_HTTP2,
   ALPN_HTTP2C,
   ALPN_HTTP1_1,
@@ -37,6 +38,8 @@ class RequestContext {
       /**
        * Requests a resource from the network. Returns a Promise which resolves once
        * the response is available.
+       *
+       * @throws RequestAbortedError if the request is aborted via an AbortSignal
        */
       request: async (url, options) => this.request(url, options),
 
@@ -53,6 +56,11 @@ class RequestContext {
        * Resets the current context, i.e. disconnects all open/pending sessions, clears caches etc..
        */
       reset: async () => this.reset(),
+
+      /**
+       * Error thrown if a request is aborted via an AbortSignal.
+       */
+      RequestAbortedError,
 
       ALPN_HTTP2,
       ALPN_HTTP2C,

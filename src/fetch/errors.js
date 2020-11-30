@@ -14,8 +14,6 @@
 
 'use strict';
 
-/* eslint-disable max-classes-per-file */
-
 class FetchBaseError extends Error {
   constructor(message, type) {
     super(message);

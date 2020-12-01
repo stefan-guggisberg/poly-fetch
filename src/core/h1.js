@@ -125,6 +125,7 @@ const h1Request = async (ctx, url, options) => {
 
     // intercept abort signal in order to cancel request
     const { signal } = opts;
+
     const onAbortSignal = () => {
       signal.removeEventListener('abort', onAbortSignal);
       reject(new RequestAbortedError());
@@ -133,6 +134,10 @@ const h1Request = async (ctx, url, options) => {
       }
     };
     if (signal) {
+      if (signal.aborted) {
+        reject(new RequestAbortedError());
+        return;
+      }
       signal.addEventListener('abort', onAbortSignal);
     }
 

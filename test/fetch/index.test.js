@@ -204,7 +204,7 @@ testParams.forEach((params) => {
       assert((ts1 - ts0) < FETCH_TIMEOUT * 1.1);
     });
 
-    it.skip('AbortController works (slow connect)', async () => {
+    it('AbortController works (slow connect)', async () => {
       const controller = new AbortController();
       setTimeout(() => controller.abort(), 1000);
       const { signal } = controller;
@@ -275,13 +275,17 @@ testParams.forEach((params) => {
     });
 
     it('supports redirect (default)', async () => {
-      const resp = await fetch(`${protocol}://httpstat.us/307`);
+      const url = `${protocol}://httpbingo.org/redirect-to?url=${protocol}%3A%2F%2Fhttpbin.org%2Fstatus%2F200&status_code=307`;
+      // const url = `${protocol}://httpstat.us/307`; // sometimes very slooow
+      const resp = await fetch(url);
       assert.strictEqual(resp.status, 200);
       assert.strictEqual(resp.redirected, true);
     });
 
     it('supports redirect: follow', async () => {
-      const resp = await fetch(`${protocol}://httpstat.us/307`, { redirect: 'follow' });
+      const url = `${protocol}://httpbingo.org/redirect-to?url=${protocol}%3A%2F%2Fhttpbin.org%2Fstatus%2F200&status_code=307`;
+      // const url = `${protocol}://httpstat.us/307`; // sometimes very slooow
+      const resp = await fetch(url, { redirect: 'follow' });
       assert.strictEqual(resp.status, 200);
       assert.strictEqual(resp.redirected, true);
     });

@@ -220,6 +220,10 @@ const request = async (ctx, url, options) => {
       }
     };
     if (signal) {
+      if (signal.aborted) {
+        reject(new RequestAbortedError());
+        return;
+      }
       signal.addEventListener('abort', onAbortSignal);
     }
 

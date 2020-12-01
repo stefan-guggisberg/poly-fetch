@@ -46,9 +46,31 @@ let socketIdCounter = 0;
 const connectionLock = lock();
 
 const connectTLS = (url, options) => new Promise((resolve, reject) => {
-  // TODO: connect timeout option: https://github.com/grantila/fetch-h2/issues/99
-  const socket = tls.connect(+url.port || 443, url.hostname, options);
+  // intercept abort signal in order to cancel connect
+  const { signal } = options;
+  let socket;
+  const onAbortSignal = () => {
+    signal.removeEventListener('abort', onAbortSignal);
+    const err = new RequestAbortedError();
+    reject(err);
+    if (socket) {
+      socket.destroy(err);
+    }
+  };
+  if (signal) {
+    if (signal.aborted) {
+      reject(new RequestAbortedError());
+      return;
+    }
+    signal.addEventListener('abort', onAbortSignal);
+  }
+
+  const port = +url.port || 443;
+  socket = tls.connect(port, url.hostname, options);
   socket.once('secureConnect', () => {
+    if (signal) {
+      signal.removeEventListener('abort', onAbortSignal);
+    }
     socketIdCounter += 1;
     socket.id = socketIdCounter;
     // workaround for node >= 12.17.0 regression
@@ -57,8 +79,16 @@ const connectTLS = (url, options) => new Promise((resolve, reject) => {
     debug(`established TLS connection: #${socket.id} ${url.hostname}`);
     resolve(socket);
   });
-
-  socket.once('error', reject);
+  socket.once('error', (err) => {
+    // error occured while connecting
+    if (signal) {
+      signal.removeEventListener('abort', onAbortSignal);
+    }
+    if (!(err instanceof RequestAbortedError)) {
+      debug(`connecting to ${url.hostname}:${port} failed with: ${err.message}`);
+      reject(err);
+    }
+  });
 });
 
 const connect = async (url, options) => {
@@ -74,7 +104,7 @@ const connect = async (url, options) => {
   }
 };
 
-const determineProtocol = async (ctx, url) => {
+const determineProtocol = async (ctx, url, signal) => {
   // lookup ALPN cache
   let protocol = ctx.alpnCache.get(url.origin);
   if (protocol) {
@@ -106,6 +136,7 @@ const determineProtocol = async (ctx, url) => {
   const connectOptions = {
     servername: url.hostname, // enable SNI (Server Name Indication) extension
     ALPNProtocols: ctx.alpnProtocols,
+    signal, // optional abort signal
   };
   const socket = await connect(url, connectOptions);
   // socket.alpnProtocol contains the negotiated protocol (e.g. 'h2', 'http1.1', 'http1.0')
@@ -167,8 +198,11 @@ const request = async (ctx, uri, options) => {
     opts.headers['accept-encoding'] = 'gzip,deflate,br';
   }
 
+  // extract optional abort signal
+  const { signal } = opts;
+
   // delegate to protocol-specific request handler
-  const { protocol, socket = null } = await determineProtocol(ctx, url);
+  const { protocol, socket = null } = await determineProtocol(ctx, url, signal);
   debug(`${url.host} -> ${protocol}`);
   switch (protocol) {
     case ALPN_HTTP2:

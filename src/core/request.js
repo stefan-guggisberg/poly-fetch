@@ -76,7 +76,7 @@ const connectTLS = (url, options) => new Promise((resolve, reject) => {
     // workaround for node >= 12.17.0 regression
     // (see https://github.com/nodejs/node/pull/34859)
     socket.secureConnecting = false;
-    debug(`established TLS connection: #${socket.id} ${url.hostname}`);
+    debug(`established TLS connection: #${socket.id} (${socket.servername})`);
     resolve(socket);
   });
   socket.once('error', (err) => {

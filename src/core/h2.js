@@ -162,7 +162,7 @@ const request = async (ctx, url, options) => {
       if (socket) {
         // reuse socket
         connectOptions.createConnection = (/* url, options */) => {
-          debug(`reusing socket #${socket.id} ${url.hostname}`);
+          debug(`reusing socket #${socket.id} (${socket.servername})`);
           return socket;
         };
       }

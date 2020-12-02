@@ -19,6 +19,7 @@ const { Readable } = require('stream');
 const debug = require('debug')('polyglot-fetch:h1');
 
 const { RequestAbortedError } = require('./errors');
+const lock = require('./lock');
 const { decodeStream } = require('../common/utils');
 
 const getAgent = (ctx, protocol) => {
@@ -102,7 +103,7 @@ const h1Request = async (ctx, url, options) => {
         get: (target, property) => {
           if (property === 'createConnection') {
             return (_connectOptions, cb) => {
-              debug(`agent reusing socket #${socket.id} ${socket.host}`);
+              debug(`agent reusing socket #${socket.id} (${socket.servername})`);
               cb(null, socket);
             };
           } else {
@@ -112,9 +113,9 @@ const h1Request = async (ctx, url, options) => {
       });
     } else {
       // no agent, provide createConntection in options
-      opts.createConnection = (/* (url, options */) => {
-        debug(`reusing socket  #${socket.id} ${socket.host}`);
-        return socket;
+      opts.createConnection = (_connectOptions, cb) => {
+        debug(`reusing socket #${socket.id} (${socket.servername})`);
+        cb(null, socket);
       };
     }
   }
@@ -125,7 +126,6 @@ const h1Request = async (ctx, url, options) => {
 
     // intercept abort signal in order to cancel request
     const { signal } = opts;
-
     const onAbortSignal = () => {
       signal.removeEventListener('abort', onAbortSignal);
       reject(new RequestAbortedError());

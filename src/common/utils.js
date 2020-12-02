@@ -20,7 +20,7 @@ const {
   Z_SYNC_FLUSH,
 } = require('zlib');
 
-const debug = require('debug')('polyglot-fetch:utils');
+const debug = require('debug')('poly-fetch:utils');
 
 function shouldDecode(statusCode, headers) {
   if (statusCode === 204 || statusCode === 304) {

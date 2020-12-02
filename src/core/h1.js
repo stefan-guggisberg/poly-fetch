@@ -16,7 +16,7 @@ const http = require('http');
 const https = require('https');
 const { Readable } = require('stream');
 
-const debug = require('debug')('polyglot-fetch:h1');
+const debug = require('debug')('poly-fetch:h1');
 
 const { RequestAbortedError } = require('./errors');
 const lock = require('./lock');

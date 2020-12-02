@@ -1,5 +1,5 @@
 {
-  "name": "polyglot-fetch",
+  "name": "poly-fetch",
   "version": "1.0.0",
   "description": "Lightweight Fetch implementation transparently supporting both HTTP/1(.1) and HTTP/2",
   "main": "src/index.js",
@@ -14,12 +14,12 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/stefan-guggisberg/polyglot-fetch"
+    "url": "https://github.com/stefan-guggisberg/poly-fetch"
   },
   "bugs": {
-    "url": "https://github.com/stefan-guggisberg/polyglot-fetch/issues"
+    "url": "https://github.com/stefan-guggisberg/poly-fetch/issues"
   },
-  "homepage": "https://github.com/stefan-guggisberg/polyglot-fetch#readme",
+  "homepage": "https://github.com/stefan-guggisberg/poly-fetch#readme",
   "dependencies": {
     "debug": "4.2.0",
     "form-data": "3.0.0",

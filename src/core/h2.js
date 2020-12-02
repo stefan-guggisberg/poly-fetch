@@ -22,7 +22,7 @@ const {
 } = require('http2');
 const { Readable } = require('stream');
 
-const debug = require('debug')('polyglot-fetch:h2');
+const debug = require('debug')('poly-fetch:h2');
 
 const { RequestAbortedError } = require('./errors');
 const { decodeStream } = require('../common/utils');

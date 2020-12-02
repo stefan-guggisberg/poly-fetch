@@ -15,7 +15,7 @@
 const tls = require('tls');
 
 const LRU = require('lru-cache');
-const debug = require('debug')('polyglot-fetch');
+const debug = require('debug')('poly-fetch');
 
 const { RequestAbortedError } = require('./errors');
 const h1 = require('./h1');
@@ -33,7 +33,7 @@ const ALPN_CACHE_SIZE = 100; // # of entries
 const ALPN_CACHE_TTL = 60 * 60 * 1000; // (ms): 1h
 const ALPN_PROTOCOLS = [ALPN_HTTP2, ALPN_HTTP1_1, ALPN_HTTP1_0];
 
-const DEFAULT_USER_AGENT = 'polyglot-fetch';
+const DEFAULT_USER_AGENT = 'poly-fetch';
 
 // request option defaults
 const DEFAULT_OPTIONS = {

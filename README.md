@@ -1,4 +1,4 @@
-# polyglot-fetch
+# poly-fetch
 
 > Lightweight Fetch implementation transparently supporting both HTTP/1(.1) and HTTP/2.
 

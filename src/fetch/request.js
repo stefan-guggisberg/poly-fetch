@@ -112,7 +112,7 @@ class Request extends Body {
     }
 
     if (signal && !(signal instanceof AbortSignal)) {
-      throw new TypeError('signal needs to be an instanceof AbortSignal');
+      throw new TypeError('signal needs to be an instance of AbortSignal');
     }
 
     this[INTERNALS] = {

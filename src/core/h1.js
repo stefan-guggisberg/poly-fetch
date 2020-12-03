@@ -95,28 +95,32 @@ const h1Request = async (ctx, url, options) => {
   const opts = { ...options, agent };
   const { socket, body } = opts;
   if (socket) {
+    // we've got a socket from initial protocol negotiation via ALPN
     delete opts.socket;
-    // reuse socket for actual request
-    if (agent) {
-      // if there's an agent we need to override the agent's createConnection
-      opts.agent = new Proxy(agent, {
-        get: (target, property) => {
-          if (property === 'createConnection') {
-            return (_connectOptions, cb) => {
-              debug(`agent reusing socket #${socket.id} (${socket.servername})`);
-              cb(null, socket);
-            };
-          } else {
-            return target[property];
-          }
-        },
-      });
-    } else {
-      // no agent, provide createConntection in options
-      opts.createConnection = (_connectOptions, cb) => {
-        debug(`reusing socket #${socket.id} (${socket.servername})`);
-        cb(null, socket);
-      };
+    if (!socket.assigned) {
+      socket.assigned = true;
+      // reuse socket for actual request
+      if (agent) {
+        // if there's an agent we need to override the agent's createConnection
+        opts.agent = new Proxy(agent, {
+          get: (target, property) => {
+            if (property === 'createConnection') {
+              return (_connectOptions, cb) => {
+                debug(`agent reusing socket #${socket.id} (${socket.servername})`);
+                cb(null, socket);
+              };
+            } else {
+              return target[property];
+            }
+          },
+        });
+      } else {
+        // no agent, provide createConnection function in options
+        opts.createConnection = (_connectOptions, cb) => {
+          debug(`reusing socket #${socket.id} (${socket.servername})`);
+          cb(null, socket);
+        };
+      }
     }
   }
 

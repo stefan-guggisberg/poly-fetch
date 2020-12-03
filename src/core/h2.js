@@ -155,7 +155,7 @@ const request = async (ctx, url, options) => {
   return new Promise((resolve, reject) => {
     // lookup session from session cache
     let session = sessionCache[origin];
-    if (!session || session.closed) {
+    if (!session || session.closed || session.destroyed) {
       // connect and setup new session
       // (connect options: https://nodejs.org/api/http2.html#http2_http2_connect_authority_options_listener)
       const connectOptions = ctxOpts;
@@ -169,34 +169,47 @@ const request = async (ctx, url, options) => {
 
       const enablePush = !!(pushPromiseHandler || pushHandler);
       session = connect(origin, { ...connectOptions, settings: { enablePush } });
+      session.setMaxListeners(1000);
       session.setTimeout(idleSessionTimeout, () => {
         debug(`closing session ${origin} after ${idleSessionTimeout} ms of inactivity`);
         session.close();
       });
       session.once('connect', () => {
         debug(`session ${origin} established`);
+        debug(`caching session ${origin}`);
+        sessionCache[origin] = session;
       });
-      session.once('localSettings', (settings) => {
+      session.on('localSettings', (settings) => {
+        debug(`session ${origin} setttings: ${JSON.stringify(settings)}`);
+      });
+      session.on('remoteSettings', (settings) => {
         debug(`session ${origin} setttings: ${JSON.stringify(settings)}`);
       });
       session.once('close', () => {
         debug(`session ${origin} closed`);
-        delete sessionCache[origin];
+        if (sessionCache[origin] === session) {
+          debug(`discarding cached session ${origin}`);
+          delete sessionCache[origin];
+        }
       });
       session.once('error', (err) => {
         debug(`session ${origin} encountered error: ${err}`);
-        reject(err); // TODO: correct?
+        if (sessionCache[origin] === session) {
+          // FIXME: redundant because 'close' event will follow?
+          debug(`discarding cached session ${origin}`);
+          delete sessionCache[origin];
+        }
       });
       session.on('frameError', (type, code, id) => {
         debug(`session ${origin} encountered frameError: type: ${type}, code: ${code}, id: ${id}`);
       });
       session.once('goaway', (errorCode, lastStreamID, opaqueData) => {
         debug(`session ${origin} received GOAWAY frame: errorCode: ${errorCode}, lastStreamID: ${lastStreamID}, opaqueData: ${opaqueData ? opaqueData.toString() : undefined}`);
+        // session will be closed automatically
       });
       session.on('stream', (stream, hdrs, flags) => {
         handlePush(ctx, origin, stream, hdrs, flags);
       });
-      sessionCache[origin] = session;
     } else {
       // we have a cached session
       // eslint-disable-next-line no-lonely-if
@@ -227,16 +240,24 @@ const request = async (ctx, url, options) => {
       signal.addEventListener('abort', onAbortSignal);
     }
 
+    const onSessionError = (err) => {
+      debug(`session ${origin} encountered error during ${opts.method} ${url.href}: ${err}`);
+      reject(err);
+    };
+    // listen on session errors during request
+    session.once('error', onSessionError);
+
     req = session.request({ ':method': method, ':path': path, ...headers });
     req.once('response', (hdrs) => {
+      session.off('error', onSessionError);
       if (signal) {
         signal.removeEventListener('abort', onAbortSignal);
       }
       resolve(createResponse(hdrs, req, reject));
     });
-    // /*
     req.once('error', (err) => {
       // error occured during the request
+      session.off('error', onSessionError);
       if (signal) {
         signal.removeEventListener('abort', onAbortSignal);
       }
@@ -247,7 +268,10 @@ const request = async (ctx, url, options) => {
         reject(err);
       }
     });
-    // */
+    req.once('frameError', (type, code, id) => {
+      session.off('error', onSessionError);
+      debug(`encountered frameError during ${opts.method} ${url.href}: type: ${type}, code: ${code}, id: ${id}`);
+    });
     req.on('push', (hdrs, flags) => {
       debug(`received 'push' event: headers: ${JSON.stringify(hdrs)}, flags: ${flags}`);
     });

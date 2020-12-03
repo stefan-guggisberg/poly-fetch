@@ -66,20 +66,8 @@ const connectTLS = (url, options) => new Promise((resolve, reject) => {
   }
 
   const port = +url.port || 443;
-  socket = tls.connect(port, url.hostname, options);
-  socket.once('secureConnect', () => {
-    if (signal) {
-      signal.removeEventListener('abort', onAbortSignal);
-    }
-    socketIdCounter += 1;
-    socket.id = socketIdCounter;
-    // workaround for node >= 12.17.0 regression
-    // (see https://github.com/nodejs/node/pull/34859)
-    socket.secureConnecting = false;
-    debug(`established TLS connection: #${socket.id} (${socket.servername})`);
-    resolve(socket);
-  });
-  socket.once('error', (err) => {
+
+  const onError = (err) => {
     // error occured while connecting
     if (signal) {
       signal.removeEventListener('abort', onAbortSignal);
@@ -88,7 +76,23 @@ const connectTLS = (url, options) => new Promise((resolve, reject) => {
       debug(`connecting to ${url.hostname}:${port} failed with: ${err.message}`);
       reject(err);
     }
+  };
+
+  socket = tls.connect(port, url.hostname, options);
+  socket.once('secureConnect', () => {
+    if (signal) {
+      signal.removeEventListener('abort', onAbortSignal);
+    }
+    socket.off('error', onError);
+    socketIdCounter += 1;
+    socket.id = socketIdCounter;
+    // workaround for node >= 12.17.0 regression
+    // (see https://github.com/nodejs/node/pull/34859)
+    socket.secureConnecting = false;
+    debug(`established TLS connection: #${socket.id} (${socket.servername})`);
+    resolve(socket);
   });
+  socket.once('error', onError);
 });
 
 const connect = async (url, options) => {

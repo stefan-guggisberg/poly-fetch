@@ -107,6 +107,7 @@ const h1Request = async (ctx, url, options) => {
             if (property === 'createConnection') {
               return (_connectOptions, cb) => {
                 debug(`agent reusing socket #${socket.id} (${socket.servername})`);
+                socket.inUse = true;
                 cb(null, socket);
               };
             } else {
@@ -118,6 +119,7 @@ const h1Request = async (ctx, url, options) => {
         // no agent, provide createConnection function in options
         opts.createConnection = (_connectOptions, cb) => {
           debug(`reusing socket #${socket.id} (${socket.servername})`);
+          socket.inUse = true;
           cb(null, socket);
         };
       }
@@ -132,6 +134,11 @@ const h1Request = async (ctx, url, options) => {
     const { signal } = opts;
     const onAbortSignal = () => {
       signal.removeEventListener('abort', onAbortSignal);
+      if (socket && !socket.inUse) {
+        // we have no use for the passed socket
+        debug(`discarding redundant socket used for ALPN: #${socket.id} ${socket.host}`);
+        socket.destroy();
+      }
       reject(new RequestAbortedError());
       if (req) {
         req.abort();
@@ -150,12 +157,22 @@ const h1Request = async (ctx, url, options) => {
       if (signal) {
         signal.removeEventListener('abort', onAbortSignal);
       }
+      if (socket && !socket.inUse) {
+        // we have no use for the passed socket
+        debug(`discarding redundant socket used for ALPN: #${socket.id} ${socket.host}`);
+        socket.destroy();
+      }
       resolve(createResponse(res, reject));
     });
     req.once('error', (err) => {
       // error occured during the request
       if (signal) {
         signal.removeEventListener('abort', onAbortSignal);
+      }
+      if (socket && !socket.inUse) {
+        // we have no use for the passed socket
+        debug(`discarding redundant socket used for ALPN: #${socket.id} ${socket.host}`);
+        socket.destroy();
       }
       if (!req.aborted) {
         debug(`${opts.method} ${url.href} failed with: ${err.message}`);

@@ -19,5 +19,5 @@
 For troubleshooting and debugging, you can enable low-level debug console output from Node.js
 (`NODE_DEBUG=<module list>`) and/or from `poly-fetch` (`DEBUG=poly-fetch*`), for example:
 ```
-NODE_DEBUG=http2,tls DEBUG=poly-fetch* node myTest.js
+NODE_DEBUG=http*,tls DEBUG=poly-fetch* node myTest.js
 ```

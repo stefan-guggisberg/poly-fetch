@@ -180,10 +180,10 @@ const request = async (ctx, url, options) => {
         sessionCache[origin] = session;
       });
       session.on('localSettings', (settings) => {
-        debug(`session ${origin} setttings: ${JSON.stringify(settings)}`);
+        debug(`session ${origin} localSettings: ${JSON.stringify(settings)}`);
       });
       session.on('remoteSettings', (settings) => {
-        debug(`session ${origin} setttings: ${JSON.stringify(settings)}`);
+        debug(`session ${origin} remoteSettings: ${JSON.stringify(settings)}`);
       });
       session.once('close', () => {
         debug(`session ${origin} closed`);
@@ -215,7 +215,7 @@ const request = async (ctx, url, options) => {
       // eslint-disable-next-line no-lonely-if
       if (socket && socket.id !== session.socket.id) {
         // we have no use for the passed socket
-        debug(`discarding redundant socket used for ALPN: #${socket.id} ${socket.host}`);
+        debug(`discarding redundant socket used for ALPN: #${socket.id} ${socket.servername}`);
         socket.destroy();
       }
     }

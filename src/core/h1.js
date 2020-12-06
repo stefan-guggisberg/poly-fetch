@@ -136,7 +136,7 @@ const h1Request = async (ctx, url, options) => {
       signal.removeEventListener('abort', onAbortSignal);
       if (socket && !socket.inUse) {
         // we have no use for the passed socket
-        debug(`discarding redundant socket used for ALPN: #${socket.id} ${socket.host}`);
+        debug(`discarding redundant socket used for ALPN: #${socket.id} ${socket.servername}`);
         socket.destroy();
       }
       reject(new RequestAbortedError());
@@ -159,7 +159,7 @@ const h1Request = async (ctx, url, options) => {
       }
       if (socket && !socket.inUse) {
         // we have no use for the passed socket
-        debug(`discarding redundant socket used for ALPN: #${socket.id} ${socket.host}`);
+        debug(`discarding redundant socket used for ALPN: #${socket.id} ${socket.servername}`);
         socket.destroy();
       }
       resolve(createResponse(res, reject));
@@ -171,7 +171,7 @@ const h1Request = async (ctx, url, options) => {
       }
       if (socket && !socket.inUse) {
         // we have no use for the passed socket
-        debug(`discarding redundant socket used for ALPN: #${socket.id} ${socket.host}`);
+        debug(`discarding redundant socket used for ALPN: #${socket.id} ${socket.servername}`);
         socket.destroy();
       }
       if (!req.aborted) {

@@ -10,8 +10,12 @@
  * governing permissions and limitations under the License.
  */
 
-export type ALPNProtocol = 'h2' | 'h2c' | 'http/1.1' | 'http/1.0';
-
+export enum ALPNProtocol {
+  ALPN_HTTP2 = 'h2',
+  ALPN_HTTP2C = 'h2c',
+  ALPN_HTTP1_1 = 'http/1.1',
+  ALPN_HTTP1_0 = 'http/1.0',
+}
 export interface Http1Options {
   /**
    * Keep sockets around in a pool to be used by other requests in the future.
@@ -98,8 +102,22 @@ export interface Http2Options {
 
 export interface ContextOptions {
 	userAgent?: string;
-	overwriteUserAgent?: boolean;
+  overwriteUserAgent?: boolean;
+  /**
+   * The protocols to be negotiated, in order of preference
+   * @default [ALPN_HTTP2, ALPN_HTTP1_1, ALPN_HTTP1_0]
+   */
   alpnProtocols?: ReadonlyArray< ALPNProtocol >;
+  /**
+   * How long (in milliseconds) should ALPN information be cached for a given host?
+   * @default 60 * 60 * 1000
+   */
+  alpnCacheTTL?: number;
+  /**
+   * Maximum number of ALPN cache entries
+   * @default 100
+   */
+  alpnCacheSize?: number;
   h1?: Http1Options;
   h2?: Http2Options;
 };

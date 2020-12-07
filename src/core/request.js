@@ -23,6 +23,8 @@ const h2 = require('./h2');
 const lock = require('./lock');
 const { isPlainObject } = require('../common/utils');
 
+const { version } = require('../../package.json');
+
 const ALPN_HTTP2 = 'h2';
 const ALPN_HTTP2C = 'h2c';
 const ALPN_HTTP1_0 = 'http/1.0';
@@ -33,7 +35,7 @@ const ALPN_CACHE_SIZE = 100; // # of entries
 const ALPN_CACHE_TTL = 60 * 60 * 1000; // (ms): 1h
 const ALPN_PROTOCOLS = [ALPN_HTTP2, ALPN_HTTP1_1, ALPN_HTTP1_0];
 
-const DEFAULT_USER_AGENT = 'poly-fetch';
+const DEFAULT_USER_AGENT = `poly-fetch/${version}`;
 
 // request option defaults
 const DEFAULT_OPTIONS = {

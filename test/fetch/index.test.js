@@ -221,11 +221,10 @@ testParams.forEach((params) => {
       assert((ts1 - ts0) < 1000 * 1.1);
     });
 
-    it('overriding user-agent works', async () => {
+    it('custom user-agent works', async () => {
       const customUserAgent = 'custom-fetch';
       const ctx = context({
         userAgent: customUserAgent,
-        overwriteUserAgent: true,
       });
       const resp = await ctx.fetch(`${baseUrl}/user-agent`);
       assert.strictEqual(resp.status, 200);

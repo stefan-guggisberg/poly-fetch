@@ -90,7 +90,6 @@ describe('Core Tests', () => {
     const customUserAgent = 'custom-agent';
     const customCtx = context({
       userAgent: customUserAgent,
-      overwriteUserAgent: true,
     });
     try {
       const resp = await customCtx.request('https://httpbin.org/user-agent');

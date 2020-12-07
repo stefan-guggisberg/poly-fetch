@@ -101,8 +101,11 @@ export interface Http2Options {
 };
 
 export interface ContextOptions {
-	userAgent?: string;
-  overwriteUserAgent?: boolean;
+  /**
+   * Value of `user-agent` request header
+   * @default 'polyglot-fetch/1.0.0'
+   */
+  userAgent?: string;
   /**
    * The protocols to be negotiated, in order of preference
    * @default [ALPN_HTTP2, ALPN_HTTP1_1, ALPN_HTTP1_0]
@@ -122,15 +125,51 @@ export interface ContextOptions {
   h2?: Http2Options;
 };
 
+type AbortSignal = {
+	readonly aborted: boolean;
+
+	addEventListener(type: 'abort', listener: (this: AbortSignal) => void): void;
+	removeEventListener(type: 'abort', listener: (this: AbortSignal) => void): void;
+};
+
+type HeadersInit = Headers | Record<string, string> | Iterable<readonly [string, string]> | Iterable<Iterable<string>>;
+
 export interface RequestOptions {
   /**
    * A string specifying the HTTP request method.
    * @default 'GET'
    */
   method?: 'GET' | 'HEAD' | 'POST' | 'PUT' | 'DELETE' | 'OPTIONS' | 'PATCH';
+	/**
+	 * A Headers object, an object literal, or an array of two-item arrays to set request's headers.
+   * @default {}
+	 */
+  headers?: Headers | Record<string, string> | Iterable<readonly [string, string]> | Iterable<Iterable<string>>;
+	/**
+	 * The request's body.
+   * @default null
+	 */
+	body?: Readable | Buffer | String | Record<string, string> | URLSearchParams | FormData;
+	/**
+	 * A string indicating whether request follows redirects, results in an error upon encountering a redirect, or returns the redirect (in an opaque fashion). Sets request's redirect.
+   * @default 'follow'
+	 */
+	redirect?: 'follow' | 'manual' | 'error';
+	/**
+	 * An AbortSignal to set request's signal.
+   * @default null
+	 */
+  signal?: AbortSignal;
+
+  // extensions
   /**
    * A boolean specifying support of gzip/deflate/brotli content encoding.
    * @default true
    */
-	compress?: boolean;
+  compress?: boolean;
+  /**
+   * Maximum number of redirects to follow, 0 to not follow redirect.
+   * @default 20
+   */
+  follow?: number;
 };

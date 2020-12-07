@@ -22,6 +22,8 @@ const { Headers } = require('./headers');
 
 const { isPlainObject } = require('../common/utils');
 
+const DEFAULT_FOLLOW = 20;
+
 const INTERNALS = Symbol('Request internals');
 
 /**
@@ -127,7 +129,7 @@ class Request extends Body {
     // extension options
     if (init.follow === undefined) {
       if (!req || req.follow === undefined) {
-        this.follow = 20;
+        this.follow = DEFAULT_FOLLOW;
       } else {
         this.follow = req.follow;
       }

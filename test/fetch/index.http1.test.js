@@ -23,6 +23,28 @@ const {
 } = require('../../src/fetch');
 
 describe('HTTP/1.1-specific Fetch Tests', () => {
+  it('defaults to \'no keep-alive\'', async () => {
+    const { fetch, reset } = context({ alpnProtocols: [ALPN_HTTP1_1] });
+    try {
+      const resp = await fetch('https://httpbin.org/status/200');
+      assert.strictEqual(resp.status, 200);
+      assert.strictEqual(resp.headers.get('connection'), 'close');
+    } finally {
+      await reset();
+    }
+  });
+
+  it('supports keep-alive', async () => {
+    const { fetch, reset } = context({ alpnProtocols: [ALPN_HTTP1_1], h1: { keepAlive: true } });
+    try {
+      const resp = await fetch('https://httpbin.org/status/200');
+      assert.strictEqual(resp.status, 200);
+      assert.strictEqual(resp.headers.get('connection'), 'keep-alive');
+    } finally {
+      await reset();
+    }
+  });
+
   it('concurrent HTTP/1.1 requests to same origin', async () => {
     const { fetch, reset } = context({ alpnProtocols: [ALPN_HTTP1_1] });
     const N = 500; // # of parallel requests

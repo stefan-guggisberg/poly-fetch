@@ -310,14 +310,12 @@ testParams.forEach((params) => {
       assert.rejects(() => fetch(`${protocol}://httpstat.us/307`, { redirect: 'error' }), FetchError);
     });
 
-    // eslint-disable-next-line prefer-arrow-callback
     it('supports multiple redirects', async () => {
       const resp = await fetch(`${protocol}://httpbingo.org/relative-redirect/5`);
       assert.strictEqual(resp.status, 200);
       assert.strictEqual(resp.redirected, true);
     });
 
-    // eslint-disable-next-line prefer-arrow-callback
     it('follows redirect code 303 with GET', async () => {
       const url = `${protocol}://httpbingo.org/redirect-to?url=${protocol}%3A%2F%2Fhttpbin.org%2Fanything&status_code=303`;
       const method = 'POST';

@@ -180,7 +180,7 @@ const request = async (ctx, uri, options) => {
   }
   // User-Agent header
   if (ctx.userAgent) {
-    if (!opts.headers['user-agent'] || ctx.overwriteUserAgent) {
+    if (!opts.headers['user-agent']) {
       opts.headers['user-agent'] = ctx.userAgent;
     }
   }
@@ -240,7 +240,6 @@ const setupContext = (ctx) => {
       alpnCacheTTL = ALPN_CACHE_TTL,
       alpnCacheSize = ALPN_CACHE_SIZE,
       userAgent = DEFAULT_USER_AGENT,
-      overwriteUserAgent = false,
     },
   } = ctx;
 
@@ -248,7 +247,6 @@ const setupContext = (ctx) => {
   ctx.alpnCache = new LRU({ max: alpnCacheSize, maxAge: alpnCacheTTL });
 
   ctx.userAgent = userAgent;
-  ctx.overwriteUserAgent = overwriteUserAgent;
 
   h1.setupContext(ctx);
   h2.setupContext(ctx);

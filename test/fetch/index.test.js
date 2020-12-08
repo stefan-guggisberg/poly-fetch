@@ -330,6 +330,16 @@ testParams.forEach((params) => {
       assert.strictEqual(jsonResponseBody.data, '');
     });
 
+    it('follows redirected POST with json body', async () => {
+      const method = 'POST';
+      const body = { foo: 'bar' };
+      const url = `${protocol}://httpbingo.org/redirect-to?url=${protocol}%3A%2F%2Fhttpbin.org%2Fstatus%2F200&status_code=307`;
+      // const url = `${protocol}://httpstat.us/307`; // sometimes very slooow
+      const resp = await fetch(url, { method, body });
+      assert.strictEqual(resp.status, 200);
+      assert.strictEqual(resp.redirected, true);
+    });
+
     it('fails non-GET redirect if body is a readable stream', async () => {
       const method = 'POST';
       const body = stream.Readable.from('foo bar');

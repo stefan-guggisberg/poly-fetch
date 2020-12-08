@@ -19,10 +19,10 @@ const { Readable } = require('stream');
 const debug = require('debug')('poly-fetch:h1');
 
 const { RequestAbortedError } = require('./errors');
-const lock = require('./lock');
 const { decodeStream } = require('../common/utils');
 
 const getAgent = (ctx, protocol) => {
+  // getAgent is synchronous, no need for lock/mutex
   const { h1, options: { h1: opts } } = ctx;
 
   if (protocol === 'https:') {
@@ -104,7 +104,7 @@ const h1Request = async (ctx, url, options) => {
         // if there's an agent we need to override the agent's createConnection
         opts.agent = new Proxy(agent, {
           get: (target, property) => {
-            if (property === 'createConnection') {
+            if (property === 'createConnection' && !socket.inUse) {
               return (_connectOptions, cb) => {
                 debug(`agent reusing socket #${socket.id} (${socket.servername})`);
                 socket.inUse = true;

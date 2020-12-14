@@ -139,10 +139,21 @@ const determineProtocol = async (ctx, url, signal) => {
   }
 
   // negotioate via ALPN
+  const {
+    options: {
+      rejectUnauthorized: _rejectUnauthorized,
+      h1: h1Opts = {},
+      h2: h2Opts = {},
+    },
+  } = ctx;
+  const rejectUnauthorized = !((_rejectUnauthorized === false
+    || h1Opts.rejectUnauthorized === false
+    || h2Opts.rejectUnauthorized === false));
   const connectOptions = {
     servername: url.hostname, // enable SNI (Server Name Indication) extension
     ALPNProtocols: ctx.alpnProtocols,
     signal, // optional abort signal
+    rejectUnauthorized,
   };
   const socket = await connect(url, connectOptions);
   // socket.alpnProtocol contains the negotiated protocol (e.g. 'h2', 'http1.1', 'http1.0')

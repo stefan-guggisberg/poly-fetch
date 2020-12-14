@@ -16,6 +16,10 @@
 
 const assert = require('assert');
 const crypto = require('crypto');
+const http2 = require('http2');
+const util = require('util');
+
+const pem = require('pem');
 
 const {
   fetch,
@@ -23,9 +27,127 @@ const {
   reset,
 } = require('../../src/fetch');
 
+const createCertificate = util.promisify(pem.createCertificate);
+
+const HELLO_WORLD = 'Hello, World!';
+
+class H2Server {
+  constructor() {
+    this.server = null;
+    this.sessions = new Set();
+  }
+
+  async start(port = 0) {
+    if (this.server) {
+      throw Error('server already started');
+    }
+    const keys = await createCertificate({ selfSigned: true });
+    const server = http2.createSecureServer({
+      key: keys.serviceKey,
+      cert: keys.certificate,
+    });
+    server.once('error', (err) => {
+      throw err;
+    });
+    server.once('close', () => {
+      this.server = null;
+      this.sessions.clear();
+    });
+    server.on('session', (session) => this.sessions.add(session));
+    server.on('stream', (stream, headers) => {
+      const { pathname } = new URL(`${headers[':scheme']}://${headers[':authority']}${headers[':path']}`);
+      switch (pathname) {
+        case '/hello':
+          stream.respond({ ':status': 200 });
+          stream.end(HELLO_WORLD);
+          break;
+
+        default:
+          stream.respond({ ':status': 404 });
+          stream.end('Not found!');
+      }
+    });
+    return new Promise((resolve) => {
+      server.listen(port, () => {
+        this.server = server;
+        resolve();
+      });
+    });
+  }
+
+  get port() {
+    if (!this.server) {
+      throw Error('server not started');
+    }
+    return this.server.address().port;
+  }
+
+  get origin() {
+    const { port } = this;
+    return `https://localhost:${port}`;
+  }
+
+  async destroy() {
+    if (!this.server) {
+      throw Error('server not started');
+    }
+    for (const session of this.sessions) {
+      session.destroy();
+      this.sessions.delete(session);
+    }
+    return new Promise((resolve) => this.server.close(resolve));
+  }
+
+  async restart() {
+    if (!this.server) {
+      throw Error('server not started');
+    }
+    const { port } = this;
+    await this.destroy();
+    return this.start(port);
+  }
+
+  async close() {
+    if (!this.server) {
+      throw Error('server not started');
+    }
+    return new Promise((resolve) => this.server.close(resolve));
+  }
+}
+
 describe('HTTP/2-specific Fetch Tests', () => {
+  let server;
+  let origin;
+
+  before(async () => {
+    // start test server
+    server = new H2Server();
+    await server.start();
+    origin = server.origin;
+  });
+
+  after(async () => {
+    await server.close();
+  });
+
   afterEach(async () => {
     await reset();
+  });
+
+  it('supports self signed certificate', async () => {
+    // self signed certificates are rejected by default
+    assert.rejects(() => fetch(`${origin}/hello`));
+
+    const ctx = context({ rejectUnauthorized: false });
+    try {
+      const resp = await ctx.fetch(`${origin}/hello`);
+      assert.strictEqual(resp.status, 200);
+      assert.strictEqual(resp.httpVersion, '2.0');
+      const body = await resp.text();
+      assert.strictEqual(body, HELLO_WORLD);
+    } finally {
+      ctx.reset();
+    }
   });
 
   it('fetch supports HTTP/2 server push', async () => {

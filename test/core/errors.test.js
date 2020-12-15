@@ -10,19 +10,20 @@
  * governing permissions and limitations under the License.
  */
 
+/* eslint-env mocha */
+
 'use strict';
 
-/**
- * Error thrown if a request is aborted via an AbortSignal.
- */
-class RequestAbortedError extends Error {
-  get name() {
-    return this.constructor.name;
-  }
+const assert = require('assert');
 
-  get [Symbol.toStringTag]() {
-    return this.constructor.name;
-  }
-}
+const { RequestAbortedError } = require('../../src/core/errors');
 
-module.exports = { RequestAbortedError };
+describe('core errors Tests', () => {
+  it('RequestAbortedError', () => {
+    const err = new RequestAbortedError('test');
+    assert(err instanceof Error);
+    assert.strictEqual(err.message, 'test');
+    assert.strictEqual(err.name, 'RequestAbortedError');
+    assert.strictEqual(Object.prototype.toString.call(err), '[object RequestAbortedError]');
+  });
+});

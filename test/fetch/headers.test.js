@@ -25,6 +25,11 @@ const { expect } = chai;
 const { Headers } = require('../../src/fetch');
 
 describe('Headers Tests', () => {
+  it('overrides toStringTag', () => {
+    const headers = new Headers();
+    expect(Object.prototype.toString.call(headers)).to.be.equal('[object Headers]');
+  });
+
   it('should have attributes conforming to Web IDL', () => {
     const headers = new Headers();
     expect(Object.getOwnPropertyNames(headers)).to.be.empty;

@@ -21,6 +21,7 @@ const normalizeName = (name) => {
 
   if (typeof validateHeaderName === 'function') {
     // since node 14.3.0
+    /* istanbul ignore next */
     validateHeaderName(nm);
   } else {
     // eslint-disable-next-line no-lonely-if
@@ -39,6 +40,7 @@ const normalizeValue = (value) => {
 
   if (typeof validateHeaderValue === 'function') {
     // since node 14.3.0
+    /* istanbul ignore next */
     validateHeaderValue('dummy', val);
   } else {
     // eslint-disable-next-line no-lonely-if

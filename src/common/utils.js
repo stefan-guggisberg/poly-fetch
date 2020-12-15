@@ -17,7 +17,9 @@ const {
   createGunzip,
   createInflate,
   createBrotliDecompress,
-  Z_SYNC_FLUSH,
+  constants: {
+    Z_SYNC_FLUSH,
+  },
 } = require('zlib');
 
 const debug = require('debug')('poly-fetch:utils');
@@ -61,7 +63,10 @@ function decodeStream(statusCode, headers, readableStream, onError) {
     case 'br':
       return pipeline(readableStream, createBrotliDecompress(), cb);
 
+    /* istanbul ignore next */
     default:
+      // dead branch since it's covered by shouldDecode already;
+      // only here to make eslint stop complaining
       return readableStream;
   }
 }

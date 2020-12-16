@@ -133,6 +133,7 @@ const h1Request = async (ctx, url, options) => {
     // intercept abort signal in order to cancel request
     const { signal } = opts;
     const onAbortSignal = () => {
+      // deregister from signal
       signal.removeEventListener('abort', onAbortSignal);
       if (socket && !socket.inUse) {
         // we have no use for the passed socket

@@ -14,14 +14,16 @@
 
 const { validateHeaderName, validateHeaderValue } = require('http');
 
+const { isPlainObject } = require('../common/utils');
+
 const INTERNALS = Symbol('Headers internals');
 
 const normalizeName = (name) => {
   const nm = typeof name !== 'string' ? String(name) : name;
 
+  /* istanbul ignore next */
   if (typeof validateHeaderName === 'function') {
     // since node 14.3.0
-    /* istanbul ignore next */
     validateHeaderName(nm);
   } else {
     // eslint-disable-next-line no-lonely-if
@@ -38,9 +40,9 @@ const normalizeName = (name) => {
 const normalizeValue = (value) => {
   const val = typeof value !== 'string' ? String(value) : value;
 
+  /* istanbul ignore next */
   if (typeof validateHeaderValue === 'function') {
     // since node 14.3.0
-    /* istanbul ignore next */
     validateHeaderValue('dummy', val);
   } else {
     // eslint-disable-next-line no-lonely-if
@@ -79,7 +81,7 @@ class Headers {
       init.forEach(([name, value]) => {
         this.append(name, value);
       });
-    } else if (typeof init === 'object') {
+    } else /* istanbul ignore else  */ if (isPlainObject(init)) {
       for (const [name, value] of Object.entries(init)) {
         this.append(name, value);
       }

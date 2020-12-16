@@ -75,12 +75,12 @@ class Body {
    * Constructs a new Body instance
    *
    * @constructor
-   * @param {Readable|Buffer|String|URLSearchParams|FormData} [body=null] (see https://fetch.spec.whatwg.org/#bodyinit-unions)
+   * @param {Readable|Buffer|String|URLSearchParams|FormData} [body] (see https://fetch.spec.whatwg.org/#bodyinit-unions)
    */
-  constructor(body = null) {
+  constructor(body) {
     let stream;
 
-    if (body === null) {
+    if (body == null) {
       stream = null;
     } else if (body instanceof URLSearchParams) {
       stream = Readable.from(body.toString());
@@ -188,6 +188,7 @@ const cloneStream = (body) => {
   const { stream } = body[INTERNALS];
   let result = stream;
 
+  /* istanbul ignore else */
   if (stream instanceof Readable) {
     result = new PassThrough();
     const clonedStream = new PassThrough();

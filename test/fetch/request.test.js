@@ -220,4 +220,18 @@ describe('Request Tests', () => {
       expect(results[1]).to.equal('a=1');
     });
   });
+
+  it('clone() should throw if body is already consumed', () => {
+    const body = Readable.from('a=1');
+    const request = new Request(BASE_URL, {
+      method: 'POST',
+      body,
+    });
+    // consume body
+    return request.text().then((result) => {
+      expect(result).to.equal('a=1');
+      // clone should fail
+      expect(() => request.clone()).to.throw(TypeError);
+    });
+  });
 });

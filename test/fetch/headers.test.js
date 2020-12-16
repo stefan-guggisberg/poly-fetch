@@ -150,4 +150,21 @@ describe('Headers Tests', () => {
     // Should reject empty header
     expect(() => headers.append('', 'ok')).to.throw(TypeError);
   });
+
+  it('constructor should support plain object', () => {
+    const headers = new Headers({ foo: 'bar' });
+    expect(headers.get('foo')).to.be.equal('bar');
+  });
+
+  it('get should return null if not found', () => {
+    const headers = new Headers();
+    expect(headers.get('not-found')).to.be.null;
+  });
+
+  it('should coerce name to string', () => {
+    const headers = new Headers();
+    expect(() => headers.set(true, 'ok')).to.not.throw();
+    expect(headers.get(true)).to.be.equal('ok');
+    expect(headers.get('true')).to.be.equal('ok');
+  });
 });

@@ -22,7 +22,9 @@ const { promisify } = require('util');
 const isStream = require('is-stream');
 const { WritableStreamBuffer } = require('stream-buffers');
 
+const { AbortController } = require('../../src/fetch/abort');
 const { context, ALPN_HTTP1_1 } = require('../../src/core');
+const { RequestAbortedError } = require('../../src/core/errors');
 
 const streamFinished = promisify(finished);
 
@@ -84,6 +86,62 @@ describe('Core Tests', () => {
     } finally {
       await customCtx.reset();
     }
+  });
+
+  it('AbortController works (premature abort)', async () => {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 0);
+    const { signal } = controller;
+
+    // make sure signal has fired
+    await sleep(10);
+    assert(signal.aborted);
+
+    const ts0 = Date.now();
+    try {
+      await defaultCtx.request('https://httpbin.org/status/200', { signal });
+      assert.fail();
+    } catch (err) {
+      assert(err instanceof RequestAbortedError);
+    }
+    const ts1 = Date.now();
+    assert((ts1 - ts0) < 10);
+  });
+
+  it('AbortController works (slow response)', async function test() {
+    this.timeout(5000);
+
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 1000);
+    const { signal } = controller;
+
+    const ts0 = Date.now();
+    try {
+      // the server responds with a 2 second delay, fetch is aborted after 1 second.
+      await defaultCtx.request('https://httpbin.org/delay/2', { signal });
+      assert.fail();
+    } catch (err) {
+      assert(err instanceof RequestAbortedError);
+    }
+    const ts1 = Date.now();
+    assert((ts1 - ts0) < 1000 * 1.1);
+  });
+
+  it('AbortController works (slow connect)', async () => {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 1000);
+    const { signal } = controller;
+
+    const ts0 = Date.now();
+    try {
+      // the TLS connect to the server hangs, fetch is aborted after 1 second.
+      await defaultCtx.request('https://example.com:81/', { signal });
+      assert.fail();
+    } catch (err) {
+      assert(err instanceof RequestAbortedError);
+    }
+    const ts1 = Date.now();
+    assert((ts1 - ts0) < 1000 * 1.1);
   });
 
   it('overriding user-agent works', async () => {

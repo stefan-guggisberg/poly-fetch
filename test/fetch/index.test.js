@@ -162,6 +162,24 @@ testParams.forEach((params) => {
       assert.deepStrictEqual(jsonResponseBody.json, body);
     });
 
+    it('AbortController works (premature abort)', async () => {
+      const controller = new AbortController();
+      controller.abort();
+      const { signal } = controller;
+      // make sure signal has fired
+      assert(signal.aborted);
+
+      const ts0 = Date.now();
+      try {
+        await fetch(`${baseUrl}/status/200`, { signal });
+        assert.fail();
+      } catch (err) {
+        assert(err instanceof AbortError);
+      }
+      const ts1 = Date.now();
+      assert((ts1 - ts0) < 10);
+    });
+
     it('AbortController works (slow response)', async function test() {
       this.timeout(5000);
 

@@ -12,12 +12,16 @@
 
 /* eslint-env mocha */
 /* eslint-disable guard-for-in */
+/* eslint-disable no-unused-expressions */
 
 'use strict';
 
 const { Readable } = require('stream');
 
 const chai = require('chai');
+const chaiAsPromised = require('chai-as-promised');
+
+chai.use(chaiAsPromised);
 
 const { expect } = chai;
 
@@ -117,12 +121,21 @@ describe('Response Tests', () => {
     expect(cl.url).to.equal('http://example.com/');
     expect(cl.status).to.equal(346);
     expect(cl.statusText).to.equal('production');
-    // eslint-disable-next-line no-unused-expressions
     expect(cl.ok).to.be.false;
     // Clone body shouldn't be the same body
     expect(cl.body).to.not.equal(body);
     return cl.text().then((result) => {
       expect(result).to.equal('a=1');
+    });
+  });
+
+  it('clone() should throw if body is already consumed', () => {
+    const body = Readable.from('a=1');
+    const res = new Response(body);
+    const clone = () => res.clone();
+    return res.text().then((result) => {
+      expect(result).to.be.equal('a=1');
+      expect(clone).to.throw(TypeError);
     });
   });
 
@@ -138,6 +151,21 @@ describe('Response Tests', () => {
     const res = new Response('a=1');
     return res.text().then((result) => {
       expect(result).to.equal('a=1');
+    });
+  });
+
+  it('should support String as body', () => {
+    // eslint-disable-next-line no-new-wrappers
+    const res = new Response(new String('a=1'));
+    return res.text().then((result) => {
+      expect(result).to.equal('a=1');
+    });
+  });
+
+  it('should coerce body to string', () => {
+    const res = new Response(true);
+    return res.text().then((result) => {
+      expect(result).to.equal('true');
     });
   });
 
@@ -163,5 +191,44 @@ describe('Response Tests', () => {
   it('should default to empty string as url', () => {
     const res = new Response();
     expect(res.url).to.equal('');
+  });
+
+  it('should set bodyUsed', () => {
+    const res = new Response(Readable.from('a=1'));
+    expect(res.bodyUsed).to.be.false;
+    return res.text().then((result) => {
+      expect(res.bodyUsed).to.be.true;
+      expect(result).to.equal('a=1');
+    });
+  });
+
+  it('should throw if bodyUsed', () => {
+    const res = new Response(Readable.from('a=1'));
+    expect(res.bodyUsed).to.be.false;
+    return res.text().then(async (result) => {
+      expect(res.bodyUsed).to.be.true;
+      expect(result).to.equal('a=1');
+      // repeated access should fail
+      expect(res.text()).to.be.rejectedWith(TypeError);
+    });
+  });
+
+  it('redirect creates redirect Response', () => {
+    const res = Response.redirect('https://fetch.spec.whatwg.org/', 301);
+    expect(res).to.be.an.instanceof(Response);
+    expect(res.status).to.equal(301);
+    expect(res.headers.get('Location')).to.equal('https://fetch.spec.whatwg.org/');
+  });
+
+  it('redirect defaults to redirect status 302', () => {
+    const res = Response.redirect('https://fetch.spec.whatwg.org/');
+    expect(res).to.be.an.instanceof(Response);
+    expect(res.status).to.equal(302);
+    expect(res.headers.get('Location')).to.equal('https://fetch.spec.whatwg.org/');
+  });
+
+  it('redirect throws on non-redirect status', () => {
+    const redirect = () => Response.redirect('https://fetch.spec.whatwg.org/', 200);
+    expect(redirect).to.throw(RangeError);
   });
 });

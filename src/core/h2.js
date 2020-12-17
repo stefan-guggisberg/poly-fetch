@@ -101,21 +101,19 @@ const handlePush = (ctx, origin, pushedStream, requestHeaders, flags) => {
       pushedStream.close(NGHTTP2_CANCEL);
     });
 
+    /* istanbul ignore else */
     if (pushHandler) {
       pushHandler(url, createResponse(responseHeaders, pushedStream));
     }
   });
   // log stream errors
-  pushedStream.on('aborted', () => {
-    /* istanbul ignore next */
+  pushedStream.on('aborted', /* istanbul ignore next */ () => {
     debug(`pushed stream #${pushedStream.id} aborted`);
   });
-  pushedStream.on('error', (err) => {
-    /* istanbul ignore next */
+  pushedStream.on('error', /* istanbul ignore next */ (err) => {
     debug(`pushed stream #${pushedStream.id} encountered error: ${err}`);
   });
-  pushedStream.on('frameError', (type, code, id) => {
-    /* istanbul ignore next */
+  pushedStream.on('frameError', /* istanbul ignore next */ (type, code, id) => {
     debug(`pushed stream #${pushedStream.id} encountered frameError: type: ${type}, code: ${code}, id: ${id}`);
   });
 };
@@ -206,10 +204,10 @@ const request = async (ctx, url, options) => {
           delete sessionCache[origin];
         }
       });
-      session.on('frameError', (type, code, id) => {
+      session.on('frameError', /* istanbul ignore next */ (type, code, id) => {
         debug(`session ${origin} encountered frameError: type: ${type}, code: ${code}, id: ${id}`);
       });
-      session.once('goaway', (errorCode, lastStreamID, opaqueData) => {
+      session.once('goaway', /* istanbul ignore next */ (errorCode, lastStreamID, opaqueData) => {
         debug(`session ${origin} received GOAWAY frame: errorCode: ${errorCode}, lastStreamID: ${lastStreamID}, opaqueData: ${opaqueData ? opaqueData.toString() : undefined}`);
         // session will be closed automatically
       });

@@ -107,12 +107,15 @@ const handlePush = (ctx, origin, pushedStream, requestHeaders, flags) => {
   });
   // log stream errors
   pushedStream.on('aborted', () => {
+    /* istanbul ignore next */
     debug(`pushed stream #${pushedStream.id} aborted`);
   });
   pushedStream.on('error', (err) => {
+    /* istanbul ignore next */
     debug(`pushed stream #${pushedStream.id} encountered error: ${err}`);
   });
   pushedStream.on('frameError', (type, code, id) => {
+    /* istanbul ignore next */
     debug(`pushed stream #${pushedStream.id} encountered frameError: type: ${type}, code: ${code}, id: ${id}`);
   });
 };
@@ -147,6 +150,7 @@ const request = async (ctx, url, options) => {
   if (socket) {
     delete opts.socket;
   }
+  /* istanbul ignore else */
   if (headers.host) {
     headers[':authority'] = headers.host;
     delete headers.host;
@@ -159,6 +163,7 @@ const request = async (ctx, url, options) => {
       // connect and setup new session
       // (connect options: https://nodejs.org/api/http2.html#http2_http2_connect_authority_options_listener)
       const connectOptions = ctxOpts;
+      /* istanbul ignore else */
       if (socket) {
         // reuse socket
         connectOptions.createConnection = (/* url, options */) => {
@@ -187,6 +192,7 @@ const request = async (ctx, url, options) => {
       });
       session.once('close', () => {
         debug(`session ${origin} closed`);
+        /* istanbul ignore else */
         if (sessionCache[origin] === session) {
           debug(`discarding cached session ${origin}`);
           delete sessionCache[origin];
@@ -228,6 +234,7 @@ const request = async (ctx, url, options) => {
     const onAbortSignal = () => {
       signal.removeEventListener('abort', onAbortSignal);
       reject(new RequestAbortedError());
+      /* istanbul ignore else */
       if (req) {
         req.close(NGHTTP2_CANCEL);
       }
@@ -258,10 +265,12 @@ const request = async (ctx, url, options) => {
     req.once('error', (err) => {
       // error occured during the request
       session.off('error', onSessionError);
+      /* istanbul ignore else */
       if (signal) {
         signal.removeEventListener('abort', onAbortSignal);
       }
       // if (!req.aborted) {
+      /* istanbul ignore else */
       if (req.rstCode !== NGHTTP2_CANCEL) {
         debug(`${opts.method} ${url.href} failed with: ${err.message}`);
         req.close(NGHTTP2_CANCEL); // neccessary?

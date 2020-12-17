@@ -39,6 +39,7 @@ const fetch = async (ctx, url, options = {}) => {
   if (signal && signal.aborted) {
     const err = new AbortError('The operation was aborted.');
     // cleanup request
+    /* istanbul ignore else */
     if (req.body && req.body instanceof Readable) {
       req.body.destroy(err);
     }
@@ -113,6 +114,7 @@ const fetch = async (ctx, url, options = {}) => {
         throw new FetchError(`uri requested responds with a redirect, redirect mode is set to 'error': ${req.url}`, 'no-redirect');
       case 'manual':
         // extension: set location header to the resolved url
+        /* istanbul ignore else */
         if (locationURL !== null) {
           headers.location = locationURL.toString();
         }
@@ -137,6 +139,7 @@ const fetch = async (ctx, url, options = {}) => {
         const requestOptions = {
           headers: new Headers(req.headers),
           follow: req.follow,
+          compress: req.compress,
           counter: req.counter + 1,
           method: req.method,
           body: req.body,
@@ -164,13 +167,10 @@ const fetch = async (ctx, url, options = {}) => {
           // deregister from signal
           signal.removeEventListener('abort', abortHandler);
         }
-        return fetch(
-          ctx,
-          new Request(locationURL, requestOptions),
-          options.compress === undefined ? {} : { compress: options.compress },
-        );
+        return fetch(ctx, new Request(locationURL, requestOptions));
       }
 
+      /* istanbul ignore next */
       default:
         // fall through
     }

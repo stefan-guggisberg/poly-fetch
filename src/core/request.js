@@ -196,7 +196,6 @@ const request = async (ctx, uri, options) => {
     }
   }
   // some header magic
-  // TODO: required? logic already exists in Fetch API Request
   if (opts.body instanceof URLSearchParams) {
     opts.headers['content-type'] = 'application/x-www-form-urlencoded;charset=UTF-8';
     opts.body = opts.body.toString();
@@ -210,7 +209,12 @@ const request = async (ctx, uri, options) => {
       opts.headers['content-type'] = 'application/json';
     }
   }
-
+  if (!opts.headers.accept) {
+    opts.headers.accept = '*/*';
+  }
+  if (opts.body == null && ['POST', 'PUT'].includes(opts.method)) {
+    opts.headers['content-length'] = '0';
+  }
   if (opts.compress && !opts.headers['accept-encoding']) {
     opts.headers['accept-encoding'] = 'gzip,deflate,br';
   }

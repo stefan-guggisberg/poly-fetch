@@ -53,6 +53,7 @@ const guessContentType = (body) => {
     return null;
   }
 
+  /* istanbul ignore else */
   if (body instanceof Readable) {
     return null;
   }
@@ -92,7 +93,7 @@ class Request extends Body {
     let body = init.body || (req && req.body ? cloneStream(req) : null);
     const headers = new Headers(init.headers || (req && req.headers) || {});
 
-    if (body !== null && !headers.has('content-type')) {
+    if (!headers.has('content-type')) {
       if (isPlainObject(body)) {
         // extension: support plain js object body (JSON serialization)
         body = JSON.stringify(body);
@@ -117,10 +118,15 @@ class Request extends Body {
       throw new TypeError('signal needs to be an instance of AbortSignal');
     }
 
+    const redirect = init.redirect || (req && req.redirect) || 'follow';
+    if (!['follow', 'error', 'manual'].includes(redirect)) {
+      throw new TypeError(`'${redirect}' is not a valid redirect option`);
+    }
+
     this[INTERNALS] = {
       init: { ...init },
       method,
-      redirect: init.redirect || (req && req.redirect) || 'follow',
+      redirect,
       headers,
       parsedURL,
       signal,
@@ -137,6 +143,16 @@ class Request extends Body {
       this.follow = init.follow;
     }
     this.counter = init.counter || (req && req.counter) || 0;
+    if (init.compress === undefined) {
+      if (!req || req.compress === undefined) {
+        // default
+        this.compress = true;
+      } else {
+        this.compress = req.compress;
+      }
+    } else {
+      this.compress = init.compress;
+    }
   }
 
   get method() {

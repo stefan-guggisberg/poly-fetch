@@ -108,6 +108,10 @@ class Response extends Body {
 
     return new Response(cloneStream(this), { ...this[INTERNALS] });
   }
+
+  get [Symbol.toStringTag]() {
+    return this.constructor.name;
+  }
 }
 
 Object.defineProperties(Response.prototype, {

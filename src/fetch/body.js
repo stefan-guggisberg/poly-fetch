@@ -58,10 +58,6 @@ const consume = async (body) => {
     return EMPTY_BUFFER;
   }
 
-  if (!(stream instanceof Readable)) {
-    return EMPTY_BUFFER;
-  }
-
   return getStream.buffer(stream);
 };
 

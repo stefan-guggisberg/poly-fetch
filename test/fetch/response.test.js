@@ -28,6 +28,11 @@ const { expect } = chai;
 const { Response } = require('../../src/fetch');
 
 describe('Response Tests', () => {
+  it('overrides toStringTag', () => {
+    const res = new Response();
+    expect(Object.prototype.toString.call(res)).to.be.equal('[object Response]');
+  });
+
   it('should have attributes conforming to Web IDL', () => {
     const res = new Response();
     const enumerableProperties = [];
@@ -193,6 +198,13 @@ describe('Response Tests', () => {
     expect(res.url).to.equal('');
   });
 
+  it('should reject if error on stream', () => {
+    const stream = Readable.from('a=1');
+    const res = new Response(stream);
+    stream.emit('error', new Error('test'));
+    expect(res.text()).to.be.rejectedWith(TypeError);
+  });
+
   it('should set bodyUsed', () => {
     const res = new Response(Readable.from('a=1'));
     expect(res.bodyUsed).to.be.false;
@@ -202,7 +214,7 @@ describe('Response Tests', () => {
     });
   });
 
-  it('should throw if bodyUsed', () => {
+  it('should reject if bodyUsed', () => {
     const res = new Response(Readable.from('a=1'));
     expect(res.bodyUsed).to.be.false;
     return res.text().then(async (result) => {

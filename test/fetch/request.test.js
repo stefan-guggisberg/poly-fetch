@@ -26,6 +26,11 @@ const { Request, AbortController } = require('../../src/fetch');
 const BASE_URL = 'https://example.com/';
 
 describe('Request Tests', () => {
+  it('overrides toStringTag', () => {
+    const req = new Request(BASE_URL);
+    expect(Object.prototype.toString.call(req)).to.be.equal('[object Request]');
+  });
+
   it('should have attributes conforming to Web IDL', () => {
     const request = new Request('https://github.com/');
     const enumerableProperties = [];
@@ -211,6 +216,8 @@ describe('Request Tests', () => {
     expect(cl.redirect).to.equal('manual');
     expect(cl.headers.get('b')).to.equal('2');
     expect(cl.method).to.equal('POST');
+    expect(cl.follow).to.equal(3);
+    expect(cl.compress).to.equal(false);
     expect(cl.counter).to.equal(0);
     expect(cl.signal).to.equal(signal);
     // Clone body shouldn't be the same body
@@ -232,6 +239,35 @@ describe('Request Tests', () => {
       expect(result).to.equal('a=1');
       // clone should fail
       expect(() => request.clone()).to.throw(TypeError);
+    });
+  });
+
+  it('should throw on illegal redirect value', () => {
+    expect(() => new Request(BASE_URL, { redirect: 'huh?' })).to.throw(TypeError);
+  });
+
+  it('should throw on invalid signal', () => {
+    expect(() => new Request(BASE_URL, { signal: { name: 'not a signal' } })).to.throw(TypeError);
+  });
+
+  it('should coerce body to string', () => {
+    const method = 'PUT';
+    const body = true;
+    const req = new Request(BASE_URL, { method, body });
+    expect(req.headers.get('content-type')).to.equal('text/plain;charset=UTF-8');
+    return req.text().then((result) => {
+      expect(result).to.equal('true');
+    });
+  });
+
+  it('should support buffer body', () => {
+    const method = 'POST';
+    const body = Buffer.from('hello, world!', 'utf8');
+    const req = new Request(BASE_URL, { method, body });
+    // eslint-disable-next-line no-unused-expressions
+    expect(req.headers.get('content-type')).to.be.null;
+    return req.text().then((result) => {
+      expect(result).to.equal('hello, world!');
     });
   });
 });

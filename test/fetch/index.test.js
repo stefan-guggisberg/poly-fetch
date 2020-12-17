@@ -169,15 +169,20 @@ testParams.forEach((params) => {
       // make sure signal has fired
       assert(signal.aborted);
 
+      const method = 'POST';
+      const body = stream.Readable.from('hello, world!');
+
       const ts0 = Date.now();
       try {
-        await fetch(`${baseUrl}/status/200`, { signal });
+        await fetch(`${baseUrl}/status/200`, { signal, method, body });
         assert.fail();
       } catch (err) {
         assert(err instanceof AbortError);
       }
       const ts1 = Date.now();
       assert((ts1 - ts0) < 10);
+      // make sure request body (stream) is cleaned up
+      assert(body.destroyed);
     });
 
     it('AbortController works (slow response)', async function test() {
@@ -187,16 +192,21 @@ testParams.forEach((params) => {
       setTimeout(() => controller.abort(), 1000);
       const { signal } = controller;
 
+      const method = 'POST';
+      const body = stream.Readable.from('hello, world!');
+
       const ts0 = Date.now();
       try {
         // the server responds with a 2 second delay, fetch is aborted after 1 second.
-        await fetch(`${baseUrl}/delay/2`, { signal });
+        await fetch(`${baseUrl}/delay/2`, { signal, method, body });
         assert.fail();
       } catch (err) {
         assert(err instanceof AbortError);
       }
       const ts1 = Date.now();
       assert((ts1 - ts0) < 1000 * 1.1);
+      // make sure request body (stream) is cleaned up
+      assert(body.destroyed);
     });
 
     it('AbortController works (dripping response)', async function test() {

@@ -181,7 +181,7 @@ testParams.forEach((params) => {
       }
       const ts1 = Date.now();
       assert((ts1 - ts0) < 10);
-      // make sure request body (stream) is cleaned up
+      // make sure request body (stream) is destroyed
       assert(body.destroyed);
     });
 
@@ -205,24 +205,30 @@ testParams.forEach((params) => {
       }
       const ts1 = Date.now();
       assert((ts1 - ts0) < 1000 * 1.1);
-      // make sure request body (stream) is cleaned up
+      // make sure request body (stream) is destroyed
       assert(body.destroyed);
     });
 
     it('AbortController works (dripping response)', async function test() {
-      this.timeout(10000);
+      this.timeout(5000);
 
-      const DRIPPING_DURATION = 5; // seconds
-      const FETCH_TIMEOUT = 3000; // ms
-      const TEST_URL = `${baseUrl}/drip?duration=${DRIPPING_DURATION}&numbytes=10&code=200&delay=0`;
+      const FETCH_TIMEOUT = 1000; // ms
+      const DRIPPING_DURATION = 2; // seconds
+      // doesn't support POST method
+      // const TEST_URL =
+      //  `${baseUrl}/drip?duration=${DRIPPING_DURATION}&numbytes=10&code=200&delay=0`;
+      const TEST_URL = `${protocol}://httpbingo.org/drip?duration=${DRIPPING_DURATION}&numbytes=10&code=200&delay=0`;
 
       const controller = new AbortController();
       setTimeout(() => controller.abort(), FETCH_TIMEOUT);
       const { signal } = controller;
 
+      const method = 'POST';
+      const body = stream.Readable.from('hello, world!');
+
       const ts0 = Date.now();
       try {
-        const res = await fetch(TEST_URL, { signal });
+        const res = await fetch(TEST_URL, { signal, method, body });
         await res.buffer();
         assert.fail();
       } catch (err) {
@@ -230,6 +236,8 @@ testParams.forEach((params) => {
       }
       const ts1 = Date.now();
       assert((ts1 - ts0) < FETCH_TIMEOUT * 1.1);
+      // make sure request body (stream) is destroyed
+      assert(body.destroyed);
     });
 
     it('AbortController works (slow connect)', async () => {
@@ -304,7 +312,13 @@ testParams.forEach((params) => {
     it('supports redirect (default)', async () => {
       const url = `${protocol}://httpbingo.org/redirect-to?url=${protocol}%3A%2F%2Fhttpbin.org%2Fstatus%2F200&status_code=307`;
       // const url = `${protocol}://httpstat.us/307`; // sometimes very slooow
-      const resp = await fetch(url);
+      let resp = await fetch(url);
+      assert.strictEqual(resp.status, 200);
+      assert.strictEqual(resp.redirected, true);
+      // same with a signal (code coverage)
+      const controller = new AbortController();
+      const { signal } = controller;
+      resp = await fetch(url, { signal });
       assert.strictEqual(resp.status, 200);
       assert.strictEqual(resp.redirected, true);
     });
@@ -331,16 +345,30 @@ testParams.forEach((params) => {
 
     it('supports follow: 0', async () => {
       assert.rejects(() => fetch(`${protocol}://httpstat.us/307`, { follow: 0 }), FetchError);
+      // same with a signal (code coverage)
+      const controller = new AbortController();
+      const { signal } = controller;
+      assert.rejects(() => fetch(`${protocol}://httpstat.us/307`, { follow: 0, signal }), FetchError);
     });
 
     it('supports redirect: error', async () => {
       assert.rejects(() => fetch(`${protocol}://httpstat.us/307`, { redirect: 'error' }), FetchError);
+      // same with a signal (code coverage)
+      const controller = new AbortController();
+      const { signal } = controller;
+      assert.rejects(() => fetch(`${protocol}://httpstat.us/307`, { redirect: 'error', signal }), FetchError);
     });
 
     it('supports multiple redirects', async () => {
       const resp = await fetch(`${protocol}://httpbingo.org/relative-redirect/5`);
       assert.strictEqual(resp.status, 200);
       assert.strictEqual(resp.redirected, true);
+    });
+
+    it('supports redirect without location header', async () => {
+      const resp = await fetch(`${baseUrl}/status/308`);
+      assert.strictEqual(resp.status, 308);
+      assert.strictEqual(resp.redirected, false);
     });
 
     it('follows redirect code 303 with GET', async () => {
@@ -372,6 +400,10 @@ testParams.forEach((params) => {
       const method = 'POST';
       const body = stream.Readable.from('foo bar');
       assert.rejects(() => fetch(`${protocol}://httpstat.us/307`, { method, body }), FetchError);
+      // same with a signal (code coverage)
+      const controller = new AbortController();
+      const { signal } = controller;
+      assert.rejects(() => fetch(`${protocol}://httpstat.us/307`, { method, body, signal }), FetchError);
     });
 
     it('supports text body', async () => {

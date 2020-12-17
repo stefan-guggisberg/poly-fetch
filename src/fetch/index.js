@@ -61,7 +61,7 @@ const fetch = async (ctx, url, options = {}) => {
     if (req.body && req.body instanceof Readable) {
       req.body.destroy(err);
     }
-
+    /* istanbul ignore next */
     if (err instanceof TypeError) {
       throw err;
     }
@@ -78,6 +78,7 @@ const fetch = async (ctx, url, options = {}) => {
 
     const err = new AbortError('The operation was aborted.');
     // cleanup request
+    /* istanbul ignore else */
     if (req.body && req.body instanceof Readable) {
       req.body.destroy(err);
     }
@@ -103,7 +104,7 @@ const fetch = async (ctx, url, options = {}) => {
     // https://fetch.spec.whatwg.org/#concept-http-fetch step 6.2
     const { location } = headers;
     // https://fetch.spec.whatwg.org/#concept-http-fetch step 6.3
-    const locationURL = location === null ? null : new URL(location, req.url);
+    const locationURL = location == null ? null : new URL(location, req.url);
     // https://fetch.spec.whatwg.org/#concept-http-fetch step 6.5
     switch (req.redirect) {
       case 'error':

@@ -400,6 +400,7 @@ testParams.forEach((params) => {
       const method = 'POST';
       const body = stream.Readable.from('foo bar');
       assert.rejects(() => fetch(`${protocol}://httpstat.us/307`, { method, body }), FetchError);
+      assert(!body.destroyed);
       // same with a signal (code coverage)
       const controller = new AbortController();
       const { signal } = controller;

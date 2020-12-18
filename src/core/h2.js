@@ -39,17 +39,11 @@ const setupContext = (ctx) => {
 // eslint-disable-next-line arrow-body-style
 const resetContext = async ({ h2 }) => {
   return Promise.all(Object.values(h2.sessionCache).map(
-    // TODO: if there are pushed streams which aren't consumed yet session.close() will hang,
-    // i.e. the callback won't be called. Use session.destroy() ?
-    (session) => new Promise((resolve) => session.close(resolve)),
+    (session) => new Promise((resolve) => {
+      session.on('close', resolve);
+      session.destroy();
+    }),
   ));
-  /*
-  // we're seeing occasional segfaults when destroying the session ...
-  const sessions = Object.values(h2.sessionCache);
-  for (const session of sessions) {
-    session.destroy();
-  }
-  */
 };
 
 const createResponse = (headers, clientHttp2Stream, onError = () => {}) => {

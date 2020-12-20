@@ -291,8 +291,8 @@ describe('Core Tests', () => {
   it('supports HTTP/2 server push', async () => {
     let customCtx;
     const pushedResource = new Promise((resolve) => {
-      const pushHandler = (url, response) => {
-        resolve({ url, response });
+      const pushHandler = (url, headers, response) => {
+        resolve({ url, headers, response });
       };
       customCtx = context({ h2: { pushHandler } });
     });
@@ -320,7 +320,7 @@ describe('Core Tests', () => {
   it('HTTP/2 server push can be rejected', async function test() {
     this.timeout(5000);
 
-    const pushPromiseHandler = (url, reject) => {
+    const pushPromiseHandler = (url, headers, reject) => {
       // we're not interested, cancel push promise
       reject();
     };
@@ -353,8 +353,8 @@ describe('Core Tests', () => {
   it('supports timeout for idle pushed streams', async () => {
     let customCtx;
     const pushedResource = new Promise((resolve) => {
-      const pushHandler = (url, response) => {
-        resolve({ url, response });
+      const pushHandler = (url, headers, response) => {
+        resolve({ url, headers, response });
       };
       // automatically close idle pushed streams after 100ms
       // without this setting the test will timeout after 2000ms while

@@ -77,11 +77,13 @@ export interface Response {
 
 export type PushPromiseHandler = (
   url: string,
+  headers: NodeJS.Dict<string | string[]>,
 	reject: () => void
 ) => void;
 
 export type PushHandler = (
   url: string,
+  headers: NodeJS.Dict<string | string[]>,
   response: Response
 ) => void;
 

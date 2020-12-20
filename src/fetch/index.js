@@ -207,7 +207,7 @@ class FetchContext {
     if (this.options.h2 && this.options.h2.pushHandler) {
       // HTTP/2 push handler: need to wrap the response
       const handler = this.options.h2.pushHandler;
-      this.options.h2.pushHandler = (url, response) => {
+      this.options.h2.pushHandler = (url, reqHeaders, response) => {
         const {
           statusCode,
           statusText,
@@ -217,8 +217,12 @@ class FetchContext {
         } = response;
         handler(
           url,
+          reqHeaders,
           new Response(readable, {
-            status: statusCode, statusText, headers, httpVersion,
+            status: statusCode,
+            statusText,
+            headers,
+            httpVersion,
           }),
         );
       };

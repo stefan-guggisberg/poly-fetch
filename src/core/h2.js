@@ -82,7 +82,7 @@ const handlePush = (ctx, origin, pushedStream, requestHeaders, flags) => {
       pushedStream.close(NGHTTP2_CANCEL);
     };
     // give handler opportunity to reject the push
-    pushPromiseHandler(url, rejectPush);
+    pushPromiseHandler(url, requestHeaders, rejectPush);
   }
   pushedStream.on('push', (responseHeaders, flgs) => {
     // received headers for the pushed streamn
@@ -97,7 +97,7 @@ const handlePush = (ctx, origin, pushedStream, requestHeaders, flags) => {
 
     /* istanbul ignore else */
     if (pushHandler) {
-      pushHandler(url, createResponse(responseHeaders, pushedStream));
+      pushHandler(url, requestHeaders, createResponse(responseHeaders, pushedStream));
     }
   });
   // log stream errors

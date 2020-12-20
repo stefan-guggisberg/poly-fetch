@@ -153,8 +153,8 @@ describe('HTTP/2-specific Fetch Tests', () => {
   it('fetch supports HTTP/2 server push', async () => {
     let customCtx;
     const pushedResource = new Promise((resolve) => {
-      const pushHandler = (url, response) => {
-        resolve({ url, response });
+      const pushHandler = (url, headers, response) => {
+        resolve({ url, headers, response });
       };
       customCtx = context({ h2: { pushHandler } });
     });

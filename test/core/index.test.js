@@ -340,7 +340,7 @@ describe('Core Tests', () => {
     let customCtx;
     const pushedResource = new Promise((resolve) => {
       const pushHandler = (url, headers, response) => {
-        resolve({ url, headers, response });
+        resolve({ url, response });
       };
       customCtx = context({ h2: { pushHandler } });
     });
@@ -375,7 +375,8 @@ describe('Core Tests', () => {
 
     let customCtx;
     const pushedResource = new Promise((resolve) => {
-      const pushHandler = (url) => {
+      // eslint-disable-next-line no-unused-vars
+      const pushHandler = (url, headers, response) => {
         resolve(url);
       };
       customCtx = context({ h2: { pushPromiseHandler, pushHandler } });

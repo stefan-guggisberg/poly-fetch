@@ -15,7 +15,7 @@
 const tls = require('tls');
 
 const LRU = require('lru-cache');
-const debug = require('debug')('poly-fetch');
+const debug = require('debug')('helix-fetch:core');
 
 const { RequestAbortedError } = require('./errors');
 const h1 = require('./h1');
@@ -35,7 +35,7 @@ const ALPN_CACHE_SIZE = 100; // # of entries
 const ALPN_CACHE_TTL = 60 * 60 * 1000; // (ms): 1h
 const ALPN_PROTOCOLS = [ALPN_HTTP2, ALPN_HTTP1_1, ALPN_HTTP1_0];
 
-const DEFAULT_USER_AGENT = `poly-fetch/${version}`;
+const DEFAULT_USER_AGENT = `helix-fetch/${version}`;
 
 // request option defaults
 const DEFAULT_OPTIONS = {
@@ -112,8 +112,10 @@ const connect = async (url, options) => {
 };
 
 const determineProtocol = async (ctx, url, signal) => {
+  // url.origin is null if url.protocol is neither 'http:' nor 'https:' ...
+  const origin = `${url.protocol}//${url.host}`;
   // lookup ALPN cache
-  let protocol = ctx.alpnCache.get(url.origin);
+  let protocol = ctx.alpnCache.get(origin);
   if (protocol) {
     return { protocol };
   }
@@ -122,13 +124,13 @@ const determineProtocol = async (ctx, url, signal) => {
       // for simplicity we assume unencrypted HTTP to be HTTP/1.1
       // (although, theoretically, it could also be plain-text HTTP/2 (h2c))
       protocol = ALPN_HTTP1_1;
-      ctx.alpnCache.set(url.origin, protocol);
+      ctx.alpnCache.set(origin, protocol);
       return { protocol };
 
     case 'http2:':
       // HTTP/2 over TCP (h2c)
       protocol = ALPN_HTTP2C;
-      ctx.alpnCache.set(url.origin, protocol);
+      ctx.alpnCache.set(origin, protocol);
       return { protocol };
 
     case 'https:':
@@ -163,7 +165,7 @@ const determineProtocol = async (ctx, url, signal) => {
   if (!protocol) {
     protocol = ALPN_HTTP1_1; // default fallback
   }
-  ctx.alpnCache.set(url.origin, protocol);
+  ctx.alpnCache.set(origin, protocol);
   return { protocol, socket };
 };
 
@@ -232,8 +234,12 @@ const request = async (ctx, uri, options) => {
       return h2.request(ctx, url, socket ? { ...opts, socket } : opts);
     case ALPN_HTTP2C:
       // plain-text HTTP/2 (h2c)
-      url.protocol = 'http:';
-      return h2.request(ctx, url, socket ? { ...opts, socket } : opts);
+      // url.protocol = 'http:'; => doesn't work ?!
+      return h2.request(
+        ctx,
+        new URL(`http://${url.host}${url.pathname}${url.hash}${url.search}`),
+        socket ? { ...opts, socket } : opts,
+      );
     case ALPN_HTTP1_0:
     case ALPN_HTTP1_1:
       return h1.request(ctx, url, socket ? { ...opts, socket } : opts);

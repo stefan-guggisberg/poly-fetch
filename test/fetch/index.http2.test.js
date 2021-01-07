@@ -179,7 +179,9 @@ describe('HTTP/2-specific Fetch Tests', () => {
     }
   });
 
-  it('concurrent HTTP/2 requests to same origin', async () => {
+  it('concurrent HTTP/2 requests to same origin', async function test() {
+    this.timeout(5000);
+
     const N = 500; // # of parallel requests
     const TEST_URL = 'https://httpbin.org/bytes/'; // HTTP2
     // generete array of 'randomized' urls

@@ -55,6 +55,7 @@ const connectTLS = (url, options) => new Promise((resolve, reject) => {
     signal.removeEventListener('abort', onAbortSignal);
     const err = new RequestAbortedError();
     reject(err);
+    /* istanbul ignore else */
     if (socket) {
       socket.destroy(err);
     }
@@ -158,6 +159,7 @@ const determineProtocol = async (ctx, url, signal) => {
   const socket = await connect(url, connectOptions);
   // socket.alpnProtocol contains the negotiated protocol (e.g. 'h2', 'http1.1', 'http1.0')
   protocol = socket.alpnProtocol;
+  /* istanbul ignore if */
   if (!protocol) {
     protocol = ALPN_HTTP1_1; // default fallback
   }
@@ -175,7 +177,7 @@ const sanitizeHeaders = (headers) => {
 };
 
 const request = async (ctx, uri, options) => {
-  const url = typeof uri === 'string' ? new URL(uri) : uri;
+  const url = new URL(uri);
 
   const opts = { ...DEFAULT_OPTIONS, ...(options || {}) };
 
@@ -235,7 +237,9 @@ const request = async (ctx, uri, options) => {
     case ALPN_HTTP1_0:
     case ALPN_HTTP1_1:
       return h1.request(ctx, url, socket ? { ...opts, socket } : opts);
+    /* istanbul ignore next */
     default:
+      // dead branch since; only here to make eslint stop complaining
       throw new TypeError(`unsupported protocol: ${protocol}`);
   }
 };

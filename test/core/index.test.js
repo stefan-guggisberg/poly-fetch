@@ -22,6 +22,10 @@ const { promisify } = require('util');
 const isStream = require('is-stream');
 const { WritableStreamBuffer } = require('stream-buffers');
 
+const SegfaultHandler = require('segfault-handler');
+
+SegfaultHandler.registerHandler('crash.log');
+
 const { AbortController } = require('../../src/fetch/abort');
 const { context, ALPN_HTTP1_1 } = require('../../src/core');
 const { RequestAbortedError } = require('../../src/core/errors');
@@ -64,6 +68,15 @@ describe('Core Tests', () => {
     assert.strictEqual(resp.httpVersionMajor, 2);
   });
 
+  it('throws on unsupported protocol', async () => {
+    await assert.rejects(defaultCtx.request('ftp://httpbin.org/'), 'TypeError');
+  });
+
+  it('unsupported method', async () => {
+    const resp = await defaultCtx.request('https://httpbin.org/status/200', { method: 'BOMB' });
+    assert.strictEqual(resp.statusCode, 405);
+  });
+
   it('supports binary response body (Stream)', async () => {
     const dataLen = 64 * 1024; // httpbin.org/stream-bytes/{n} has a limit of 100kb ...
     const contentType = 'application/octet-stream';
@@ -103,6 +116,30 @@ describe('Core Tests', () => {
       assert.fail();
     } catch (err) {
       assert(err instanceof RequestAbortedError);
+    }
+    const ts1 = Date.now();
+    assert((ts1 - ts0) < 10);
+  });
+
+  it('AbortController works (premature abort, fresh context)', async () => {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 0);
+    const { signal } = controller;
+
+    // make sure signal has fired
+    await sleep(10);
+    assert(signal.aborted);
+
+    const customCtx = context();
+
+    const ts0 = Date.now();
+    try {
+      await customCtx.request('https://httpbin.org/status/200', { signal });
+      assert.fail();
+    } catch (err) {
+      assert(err instanceof RequestAbortedError);
+    } finally {
+      await customCtx.reset();
     }
     const ts1 = Date.now();
     assert((ts1 - ts0) < 10);
@@ -256,6 +293,17 @@ describe('Core Tests', () => {
     assert(typeof jsonResponseBody === 'object');
     assert.strictEqual(jsonResponseBody.headers['Content-Type'], 'application/x-www-form-urlencoded;charset=UTF-8');
     assert.deepStrictEqual(jsonResponseBody.form, params);
+  });
+
+  it('supports POST without body', async () => {
+    const method = 'POST';
+    const resp = await defaultCtx.request('https://httpbin.org/post', { method });
+    assert.strictEqual(resp.statusCode, 200);
+    assert.strictEqual(resp.headers['content-type'], 'application/json');
+    const buf = await readStream(resp.readable);
+    const jsonResponseBody = JSON.parse(buf);
+    assert(typeof jsonResponseBody === 'object');
+    assert.strictEqual(+jsonResponseBody.headers['Content-Length'], 0);
   });
 
   it('supports gzip content encoding', async () => {

@@ -94,6 +94,7 @@ const handlePush = (ctx, origin, pushedStream, requestHeaders, flags) => {
       debug(`closing pushed stream #${pushedStream.id} after ${pushedStreamIdleTimeout} ms of inactivity`);
       pushedStream.close(NGHTTP2_CANCEL);
     });
+
     /* istanbul ignore else */
     if (pushHandler) {
       pushHandler(url, requestHeaders, createResponse(responseHeaders, pushedStream));

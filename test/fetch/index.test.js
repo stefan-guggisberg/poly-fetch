@@ -416,7 +416,7 @@ testParams.forEach((params) => {
       assert.strictEqual(resp.headers.get('content-type'), 'application/json');
       const jsonResponseBody = await resp.json();
       assert(jsonResponseBody !== null && typeof jsonResponseBody === 'object');
-      assert.strictEqual(jsonResponseBody.headers['Content-Type'], 'text/plain;charset=UTF-8');
+      assert.strictEqual(jsonResponseBody.headers['Content-Type'], 'text/plain; charset=utf-8');
       assert.deepStrictEqual(jsonResponseBody.data, body);
     });
 
@@ -445,7 +445,7 @@ testParams.forEach((params) => {
       assert.strictEqual(resp.headers.get('content-type'), 'application/json');
       const jsonResponseBody = await resp.json();
       assert(jsonResponseBody !== null && typeof jsonResponseBody === 'object');
-      assert.strictEqual(jsonResponseBody.headers['Content-Type'], 'application/x-www-form-urlencoded;charset=UTF-8');
+      assert.strictEqual(jsonResponseBody.headers['Content-Type'], 'application/x-www-form-urlencoded; charset=utf-8');
       assert.deepStrictEqual(jsonResponseBody.form, searchParams);
     });
 

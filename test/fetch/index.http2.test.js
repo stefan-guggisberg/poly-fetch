@@ -195,7 +195,6 @@ describe('HTTP/2-specific Fetch Tests', () => {
   });
 
   it('handles concurrent HTTP/2 requests to subdomains sharing the same IP address (using wildcard SAN cert)', async () => {
-    // https://github.com/adobe/helix-fetch/issues/52
     const doFetch = async (url) => {
       const res = await fetch(url);
       assert.strictEqual(res.httpVersion, '2.0');

@@ -46,7 +46,9 @@ const resetContext = async ({ h2 }) => {
   ));
 };
 
-const createResponse = (headers, clientHttp2Stream, onError = () => {}) => {
+const createResponse = (
+  headers, clientHttp2Stream, onError = /* istanbul ignore next */ () => {},
+) => {
   const hdrs = { ...headers };
   const statusCode = hdrs[':status'];
   delete hdrs[':status'];
@@ -116,7 +118,7 @@ const request = async (ctx, url, options) => {
   const {
     origin, pathname, search, hash,
   } = url;
-  const path = `${pathname || '/'}${search}${hash}`;
+  const path = `${pathname}${search}${hash}`;
 
   const {
     options: {
@@ -135,7 +137,7 @@ const request = async (ctx, url, options) => {
   const opts = { ...options };
   const {
     method,
-    headers = {},
+    headers,
     socket,
     body,
   } = opts;
@@ -190,7 +192,7 @@ const request = async (ctx, url, options) => {
           delete sessionCache[origin];
         }
       });
-      session.once('error', (err) => {
+      session.once('error', /* istanbul ignore next */ (err) => {
         debug(`session ${origin} encountered error: ${err}`);
         if (sessionCache[origin] === session) {
           // FIXME: redundant because 'close' event will follow?
